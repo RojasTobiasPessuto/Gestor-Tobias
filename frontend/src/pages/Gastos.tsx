@@ -28,7 +28,7 @@ export default function Gastos() {
   return (
     <div className="page">
       <h2>Nuevo Gasto</h2>
-      <TransactionForm key={key} onSubmit={handleSubmit} submitLabel="Registrar Gasto" />
+      <TransactionForm key={key} onSubmit={handleSubmit} submitLabel="Registrar Gasto" type="GASTO" />
     </div>
   );
 }

@@ -28,7 +28,7 @@ export default function Ingresos() {
   return (
     <div className="page">
       <h2>Nuevo Ingreso</h2>
-      <TransactionForm key={key} onSubmit={handleSubmit} submitLabel="Registrar Ingreso" />
+      <TransactionForm key={key} onSubmit={handleSubmit} submitLabel="Registrar Ingreso" type="INGRESO" />
     </div>
   );
 }

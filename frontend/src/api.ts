@@ -92,4 +92,17 @@ export const getAnalytics = (filters?: AnalyticsFilters) =>
 export const getFilterOptions = () =>
   api.get<FilterOptions>('/analytics/filters').then((r) => r.data);
 
+export interface CategoryItem {
+  id: number;
+  name: string;
+  type: 'INGRESO' | 'GASTO';
+}
+
+export const getCategories = () => api.get<CategoryItem[]>('/categories').then((r) => r.data);
+export const createCategory = (data: { name: string; type?: string }) =>
+  api.post<CategoryItem>('/categories', data).then((r) => r.data);
+export const updateCategory = (id: number, data: { name?: string; type?: string }) =>
+  api.patch<CategoryItem>(`/categories/${id}`, data).then((r) => r.data);
+export const deleteCategory = (id: number) => api.delete(`/categories/${id}`);
+
 export default api;

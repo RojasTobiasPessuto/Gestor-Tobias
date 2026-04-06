@@ -7,6 +7,7 @@ import Transferencias from './pages/Transferencias';
 import Dolares from './pages/Dolares';
 import Historial from './pages/Historial';
 import Metricas from './pages/Metricas';
+import Categorias from './pages/Categorias';
 
 export default function App() {
   return (
@@ -19,6 +20,7 @@ export default function App() {
         <Route path="/dolares" element={<Dolares />} />
         <Route path="/historial" element={<Historial />} />
         <Route path="/metricas" element={<Metricas />} />
+        <Route path="/categorias" element={<Categorias />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>
     </Routes>

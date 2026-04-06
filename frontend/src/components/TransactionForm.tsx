@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
-import { getAccounts } from '../api';
-import type { Account } from '../api';
+import { getAccounts, getCategories } from '../api';
+import type { Account, CategoryItem } from '../api';
 
 interface Props {
   onSubmit: (data: {
@@ -11,16 +11,12 @@ interface Props {
     date: string;
   }) => Promise<void>;
   submitLabel: string;
+  type: 'INGRESO' | 'GASTO';
 }
 
-const categories = [
-  'SALARIO', 'VIDEO', 'FOTO', 'REGALO', 'NARANJA',
-  'ALQUILER', 'INTERNET', 'ALIMENTACION', 'ROPA', 'GYM',
-  'PELUQUERIA', 'TRANSPORTE', 'SALUD', 'ENTRETENIMIENTO', 'OTRO',
-];
-
-export default function TransactionForm({ onSubmit, submitLabel }: Props) {
+export default function TransactionForm({ onSubmit, submitLabel, type }: Props) {
   const [accounts, setAccounts] = useState<Account[]>([]);
+  const [categories, setCategories] = useState<CategoryItem[]>([]);
   const [accountId, setAccountId] = useState('');
   const [amount, setAmount] = useState('');
   const [category, setCategory] = useState('');
@@ -30,7 +26,10 @@ export default function TransactionForm({ onSubmit, submitLabel }: Props) {
 
   useEffect(() => {
     getAccounts().then(setAccounts);
+    getCategories().then(setCategories);
   }, []);
+
+  const filteredCategories = categories.filter((c) => c.type === type);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -68,8 +67,8 @@ export default function TransactionForm({ onSubmit, submitLabel }: Props) {
         Categoria
         <select value={category} onChange={(e) => setCategory(e.target.value)} required>
           <option value="">Seleccionar...</option>
-          {categories.map((c) => (
-            <option key={c} value={c}>{c}</option>
+          {filteredCategories.map((c) => (
+            <option key={c.id} value={c.name}>{c.name}</option>
           ))}
         </select>
       </label>

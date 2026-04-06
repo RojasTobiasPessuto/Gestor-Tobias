@@ -7,6 +7,7 @@ import {
   DollarSign,
   History,
   BarChart3,
+  Tags,
 } from 'lucide-react';
 
 const links = [
@@ -17,6 +18,7 @@ const links = [
   { to: '/dolares', label: 'Dolares', icon: DollarSign },
   { to: '/historial', label: 'Historial', icon: History },
   { to: '/metricas', label: 'Metricas', icon: BarChart3 },
+  { to: '/categorias', label: 'Categorias', icon: Tags },
 ];
 
 export default function Layout() {
