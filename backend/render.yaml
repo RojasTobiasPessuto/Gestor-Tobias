@@ -1,0 +1,13 @@
+services:
+  - type: web
+    name: gestor-api
+    runtime: node
+    buildCommand: npm install && npm run build
+    startCommand: node dist/main.js
+    envVars:
+      - key: DATABASE_URL
+        sync: false
+      - key: FRONTEND_URL
+        sync: false
+      - key: NODE_ENV
+        value: production
