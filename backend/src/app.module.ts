@@ -22,6 +22,9 @@ import { SeedService } from './seed/seed.service.js';
       entities: [Account, Transaction],
       synchronize: true,
       ssl: { rejectUnauthorized: false },
+      extra: {
+        options: 'project=uqtdmfuszsinkxrayioe',
+      },
     }),
     TypeOrmModule.forFeature([Account]),
     AccountsModule,
