@@ -56,64 +56,85 @@ export class AnalyticsController {
   ) {
     const filters = { desde, hasta, category, account_id };
 
-    // Gastos por categoría
+    // Gastos por categoría + moneda
     const gastosCatQb = this.txRepo
       .createQueryBuilder('t')
+      .innerJoin('t.account', 'a')
       .select('t.category', 'category')
+      .addSelect('a.currency', 'currency')
       .addSelect('SUM(t.amount)', 'total')
       .addSelect('COUNT(*)', 'count')
       .where("t.type = 'GASTO'")
       .andWhere('t.category IS NOT NULL');
     this.applyFilters(gastosCatQb, 't', filters);
-    const gastosPorCategoria = await gastosCatQb.groupBy('t.category').orderBy('total', 'DESC').getRawMany();
+    const gastosPorCategoria = await gastosCatQb.groupBy('t.category').addGroupBy('a.currency').orderBy('total', 'DESC').getRawMany();
 
-    // Ingresos por categoría
+    // Ingresos por categoría + moneda
     const ingresosCatQb = this.txRepo
       .createQueryBuilder('t')
+      .innerJoin('t.account', 'a')
       .select('t.category', 'category')
+      .addSelect('a.currency', 'currency')
       .addSelect('SUM(t.amount)', 'total')
       .addSelect('COUNT(*)', 'count')
       .where("t.type = 'INGRESO'")
       .andWhere('t.category IS NOT NULL');
     this.applyFilters(ingresosCatQb, 't', filters);
-    const ingresosPorCategoria = await ingresosCatQb.groupBy('t.category').orderBy('total', 'DESC').getRawMany();
+    const ingresosPorCategoria = await ingresosCatQb.groupBy('t.category').addGroupBy('a.currency').orderBy('total', 'DESC').getRawMany();
 
-    // Por mes
+    // Por mes + moneda
     const porMesQb = this.txRepo
       .createQueryBuilder('t')
+      .innerJoin('t.account', 'a')
       .select("TO_CHAR(t.date, 'YYYY-MM')", 'month')
       .addSelect('t.type', 'type')
+      .addSelect('a.currency', 'currency')
       .addSelect('SUM(t.amount)', 'total')
       .where("t.type IN ('INGRESO', 'GASTO')");
     this.applyFilters(porMesQb, 't', filters);
     const porMes = await porMesQb
       .groupBy("TO_CHAR(t.date, 'YYYY-MM')")
       .addGroupBy('t.type')
+      .addGroupBy('a.currency')
       .orderBy("TO_CHAR(t.date, 'YYYY-MM')", 'ASC')
       .getRawMany();
 
-    const meses: Record<string, { ingresos: number; gastos: number }> = {};
+    type MonthData = { ingArs: number; gasArs: number; ingUsd: number; gasUsd: number };
+    const meses: Record<string, MonthData> = {};
     for (const row of porMes) {
-      if (!meses[row.month]) meses[row.month] = { ingresos: 0, gastos: 0 };
-      if (row.type === 'INGRESO') meses[row.month].ingresos = parseFloat(row.total);
-      if (row.type === 'GASTO') meses[row.month].gastos = parseFloat(row.total);
+      if (!meses[row.month]) meses[row.month] = { ingArs: 0, gasArs: 0, ingUsd: 0, gasUsd: 0 };
+      const m = meses[row.month];
+      if (row.type === 'INGRESO' && row.currency === 'ARS') m.ingArs = parseFloat(row.total);
+      if (row.type === 'GASTO' && row.currency === 'ARS') m.gasArs = parseFloat(row.total);
+      if (row.type === 'INGRESO' && row.currency === 'USD') m.ingUsd = parseFloat(row.total);
+      if (row.type === 'GASTO' && row.currency === 'USD') m.gasUsd = parseFloat(row.total);
     }
-    const monthlyData = Object.entries(meses).map(([month, data]) => ({
+    const monthlyData = Object.entries(meses).map(([month, d]) => ({
       month,
-      ingresos: data.ingresos,
-      gastos: data.gastos,
-      balance: data.ingresos - data.gastos,
-      ahorro: data.ingresos > 0 ? ((data.ingresos - data.gastos) / data.ingresos) * 100 : 0,
+      ingArs: d.ingArs, gasArs: d.gasArs, balanceArs: d.ingArs - d.gasArs,
+      ingUsd: d.ingUsd, gasUsd: d.gasUsd, balanceUsd: d.ingUsd - d.gasUsd,
     }));
 
-    // Totales
-    const totalIngQb = this.txRepo.createQueryBuilder('t').select('SUM(t.amount)', 'total').where("t.type = 'INGRESO'");
-    this.applyFilters(totalIngQb, 't', filters);
-    const totalIngresos = await totalIngQb.getRawOne();
+    // Totales por moneda
+    const totalesPorMonedaQb = this.txRepo
+      .createQueryBuilder('t')
+      .innerJoin('t.account', 'a')
+      .select('a.currency', 'currency')
+      .addSelect('t.type', 'type')
+      .addSelect('SUM(t.amount)', 'total')
+      .where("t.type IN ('INGRESO', 'GASTO')");
+    this.applyFilters(totalesPorMonedaQb, 't', filters);
+    const totalesPorMoneda = await totalesPorMonedaQb
+      .groupBy('a.currency')
+      .addGroupBy('t.type')
+      .getRawMany();
 
-    const totalGasQb = this.txRepo.createQueryBuilder('t').select('SUM(t.amount)', 'total').where("t.type = 'GASTO'");
-    this.applyFilters(totalGasQb, 't', filters);
-    const totalGastos = await totalGasQb.getRawOne();
+    const totales = { ars: { ingresos: 0, gastos: 0 }, usd: { ingresos: 0, gastos: 0 } };
+    for (const row of totalesPorMoneda) {
+      const cur = row.currency === 'ARS' ? 'ars' : 'usd';
+      if (row.type === 'INGRESO') totales[cur].ingresos = parseFloat(row.total);
+      if (row.type === 'GASTO') totales[cur].gastos = parseFloat(row.total);
+    }
 
     // Gasto diario (siempre sin filtros de categoría/cuenta para que sea representativo)
     const hace30 = new Date();
@@ -196,11 +217,7 @@ export class AnalyticsController {
       .getRawMany();
 
     return {
-      totales: {
-        ingresos: parseFloat(totalIngresos.total) || 0,
-        gastos: parseFloat(totalGastos.total) || 0,
-        balance: (parseFloat(totalIngresos.total) || 0) - (parseFloat(totalGastos.total) || 0),
-      },
+      totales,
       gastoDiario: {
         ultimos30d: parseFloat(gastos30d.total) / 30 || 0,
         ultimos90d: parseFloat(gastos90d.total) / 90 || 0,

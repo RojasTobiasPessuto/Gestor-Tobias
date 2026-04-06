@@ -451,6 +451,82 @@ body {
 
 .clear-filters:hover { background: var(--red); color: white; }
 
+/* Transaction receipt */
+.receipt {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 1rem 0;
+}
+
+.receipt-icon {
+  margin-bottom: 0.75rem;
+}
+
+.receipt-title {
+  font-size: 1.15rem;
+  font-weight: 700;
+  margin-bottom: 1.25rem;
+}
+
+.receipt-details {
+  width: 100%;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 0.25rem 0;
+  margin-bottom: 1.25rem;
+}
+
+.receipt-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 0.55rem 1rem;
+  border-bottom: 1px solid var(--border);
+  font-size: 0.88rem;
+}
+
+.receipt-row:last-child { border-bottom: none; }
+
+.receipt-row span { color: var(--text-muted); }
+.receipt-row strong { color: var(--text); }
+
+.receipt-row.highlight {
+  background: rgba(99, 102, 241, 0.08);
+}
+
+.receipt-row.highlight strong {
+  color: var(--accent);
+  font-size: 1rem;
+}
+
+.receipt-btn {
+  background: var(--accent);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  padding: 0.65rem 2.5rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.receipt-btn:hover { opacity: 0.9; }
+
+/* Currency section titles */
+.currency-title {
+  font-size: 0.85rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 0.6rem;
+  padding-bottom: 0.4rem;
+  border-bottom: 2px solid var(--border);
+}
+
+.currency-title.ars { color: var(--blue); border-color: var(--blue); }
+.currency-title.usd { color: var(--green); border-color: var(--green); }
+
 /* Metrics cards */
 .metrics-grid-3 {
   display: grid;

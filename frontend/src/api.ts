@@ -64,11 +64,14 @@ export interface DollarRate {
 export const getDollarRate = () => api.get<DollarRate>('/dollar/rate').then((r) => r.data);
 
 export interface AnalyticsSummary {
-  totales: { ingresos: number; gastos: number; balance: number };
+  totales: {
+    ars: { ingresos: number; gastos: number };
+    usd: { ingresos: number; gastos: number };
+  };
   gastoDiario: { ultimos30d: number; ultimos90d: number };
-  gastosPorCategoria: { category: string; total: string; count: string }[];
-  ingresosPorCategoria: { category: string; total: string; count: string }[];
-  monthlyData: { month: string; ingresos: number; gastos: number; balance: number; ahorro: number }[];
+  gastosPorCategoria: { category: string; currency: string; total: string; count: string }[];
+  ingresosPorCategoria: { category: string; currency: string; total: string; count: string }[];
+  monthlyData: { month: string; ingArs: number; gasArs: number; balanceArs: number; ingUsd: number; gasUsd: number; balanceUsd: number }[];
   topGastos: { amount: number; category: string; comment: string; date: string; account: string }[];
   movimientosPorCuenta: { account: string; ingresos: number; gastos: number; balance: number; ingCount: number; gasCount: number }[];
   categoriasRecurrentes: { category: string; meses: number; promedio: number; total: number }[];

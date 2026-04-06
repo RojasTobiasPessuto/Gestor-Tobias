@@ -99,8 +99,10 @@ export default function Dashboard() {
   const totalEnDolares = totalUsd + (promedio ? totalArs / promedio : 0);
   const hasFilters = Object.values(filters).some((v) => v);
 
-  const maxBar = metrics ? Math.max(...metrics.monthlyData.map((m) => Math.max(m.gastos, m.ingresos)), 1) : 1;
-  const totalGastoCat = metrics ? metrics.gastosPorCategoria.reduce((s, c) => s + parseFloat(c.total), 0) : 0;
+  const maxBarArs = metrics ? Math.max(...metrics.monthlyData.map((m) => Math.max(m.gasArs, m.ingArs)), 1) : 1;
+  const maxBarUsd = metrics ? Math.max(...metrics.monthlyData.map((m) => Math.max(m.gasUsd, m.ingUsd)), 1) : 1;
+  const gastoCatArs = metrics ? metrics.gastosPorCategoria.filter(c => c.currency === 'ARS').reduce((s, c) => s + parseFloat(c.total), 0) : 0;
+  const gastoCatUsd = metrics ? metrics.gastosPorCategoria.filter(c => c.currency === 'USD').reduce((s, c) => s + parseFloat(c.total), 0) : 0;
 
   return (
     <div className="dashboard">
@@ -219,40 +221,41 @@ export default function Dashboard() {
 
         {metrics && !metricsLoading && (
           <>
-            {/* Resumen */}
+            {/* Resumen ARS */}
+            <h4 className="currency-title ars">ARS - Pesos</h4>
             <div className="metrics-grid-3">
               <div className="metric-card green">
-                <span className="metric-label">Ingresos</span>
-                <span className="metric-value">${fmt(metrics.totales.ingresos)}</span>
+                <span className="metric-label">Ingresos ARS</span>
+                <span className="metric-value">${fmt(metrics.totales.ars.ingresos)}</span>
               </div>
               <div className="metric-card red">
-                <span className="metric-label">Gastos</span>
-                <span className="metric-value">${fmt(metrics.totales.gastos)}</span>
+                <span className="metric-label">Gastos ARS</span>
+                <span className="metric-value">${fmt(metrics.totales.ars.gastos)}</span>
               </div>
-              <div className={`metric-card ${metrics.totales.balance >= 0 ? 'green' : 'red'}`}>
-                <span className="metric-label">Balance</span>
-                <span className="metric-value">${fmt(metrics.totales.balance)}</span>
+              <div className={`metric-card ${metrics.totales.ars.ingresos - metrics.totales.ars.gastos >= 0 ? 'green' : 'red'}`}>
+                <span className="metric-label">Balance ARS</span>
+                <span className="metric-value">${fmt(metrics.totales.ars.ingresos - metrics.totales.ars.gastos)}</span>
               </div>
             </div>
 
-            {/* Ingresos vs Gastos por mes */}
-            {metrics.monthlyData.length > 0 && (
+            {/* Chart ARS */}
+            {metrics.monthlyData.some(m => m.ingArs > 0 || m.gasArs > 0) && (
               <div className="chart-container">
-                {metrics.monthlyData.map((m) => (
+                {metrics.monthlyData.filter(m => m.ingArs > 0 || m.gasArs > 0).map((m) => (
                   <div key={m.month} className="chart-row">
                     <span className="chart-label">{fmtMonth(m.month)}</span>
                     <div className="chart-bars">
                       <div className="bar-group">
-                        <div className="bar bar-income" style={{ width: `${(m.ingresos / maxBar) * 100}%` }}>
-                          <span className="bar-text">${fmt(m.ingresos)}</span>
+                        <div className="bar bar-income" style={{ width: `${(m.ingArs / maxBarArs) * 100}%` }}>
+                          <span className="bar-text">${fmt(m.ingArs)}</span>
                         </div>
-                        <div className="bar bar-expense" style={{ width: `${(m.gastos / maxBar) * 100}%` }}>
-                          <span className="bar-text">${fmt(m.gastos)}</span>
+                        <div className="bar bar-expense" style={{ width: `${(m.gasArs / maxBarArs) * 100}%` }}>
+                          <span className="bar-text">${fmt(m.gasArs)}</span>
                         </div>
                       </div>
                     </div>
-                    <span className={`chart-balance ${m.balance >= 0 ? 'positive' : 'negative'}`}>
-                      {m.balance >= 0 ? '+' : ''}{fmt(m.balance)}
+                    <span className={`chart-balance ${m.balanceArs >= 0 ? 'positive' : 'negative'}`}>
+                      {m.balanceArs >= 0 ? '+' : ''}{fmt(m.balanceArs)}
                     </span>
                   </div>
                 ))}
@@ -263,11 +266,11 @@ export default function Dashboard() {
               </div>
             )}
 
-            {/* Gastos por categoria */}
-            {metrics.gastosPorCategoria.length > 0 && (
+            {/* Gastos por categoria ARS */}
+            {metrics.gastosPorCategoria.filter(c => c.currency === 'ARS').length > 0 && (
               <div className="category-list">
-                {metrics.gastosPorCategoria.slice(0, 8).map((c) => {
-                  const pct = totalGastoCat > 0 ? (parseFloat(c.total) / totalGastoCat) * 100 : 0;
+                {metrics.gastosPorCategoria.filter(c => c.currency === 'ARS').slice(0, 8).map((c) => {
+                  const pct = gastoCatArs > 0 ? (parseFloat(c.total) / gastoCatArs) * 100 : 0;
                   return (
                     <div key={c.category} className="category-row">
                       <div className="category-info">
@@ -287,24 +290,97 @@ export default function Dashboard() {
               </div>
             )}
 
+            {/* Resumen USD */}
+            <h4 className="currency-title usd" style={{ marginTop: '1.5rem' }}>USD - Dolares</h4>
+            <div className="metrics-grid-3">
+              <div className="metric-card green">
+                <span className="metric-label">Ingresos USD</span>
+                <span className="metric-value">US${fmt(metrics.totales.usd.ingresos)}</span>
+              </div>
+              <div className="metric-card red">
+                <span className="metric-label">Gastos USD</span>
+                <span className="metric-value">US${fmt(metrics.totales.usd.gastos)}</span>
+              </div>
+              <div className={`metric-card ${metrics.totales.usd.ingresos - metrics.totales.usd.gastos >= 0 ? 'green' : 'red'}`}>
+                <span className="metric-label">Balance USD</span>
+                <span className="metric-value">US${fmt(metrics.totales.usd.ingresos - metrics.totales.usd.gastos)}</span>
+              </div>
+            </div>
+
+            {/* Chart USD */}
+            {metrics.monthlyData.some(m => m.ingUsd > 0 || m.gasUsd > 0) && (
+              <div className="chart-container">
+                {metrics.monthlyData.filter(m => m.ingUsd > 0 || m.gasUsd > 0).map((m) => (
+                  <div key={m.month} className="chart-row">
+                    <span className="chart-label">{fmtMonth(m.month)}</span>
+                    <div className="chart-bars">
+                      <div className="bar-group">
+                        <div className="bar bar-income" style={{ width: `${(m.ingUsd / maxBarUsd) * 100}%` }}>
+                          <span className="bar-text">US${fmt(m.ingUsd)}</span>
+                        </div>
+                        <div className="bar bar-expense" style={{ width: `${(m.gasUsd / maxBarUsd) * 100}%` }}>
+                          <span className="bar-text">US${fmt(m.gasUsd)}</span>
+                        </div>
+                      </div>
+                    </div>
+                    <span className={`chart-balance ${m.balanceUsd >= 0 ? 'positive' : 'negative'}`}>
+                      {m.balanceUsd >= 0 ? '+' : ''}US${fmt(m.balanceUsd)}
+                    </span>
+                  </div>
+                ))}
+                <div className="chart-legend">
+                  <span><span className="dot green-dot"></span> Ingresos</span>
+                  <span><span className="dot red-dot"></span> Gastos</span>
+                </div>
+              </div>
+            )}
+
+            {/* Gastos por categoria USD */}
+            {metrics.gastosPorCategoria.filter(c => c.currency === 'USD').length > 0 && (
+              <div className="category-list">
+                {metrics.gastosPorCategoria.filter(c => c.currency === 'USD').slice(0, 8).map((c) => {
+                  const pct = gastoCatUsd > 0 ? (parseFloat(c.total) / gastoCatUsd) * 100 : 0;
+                  return (
+                    <div key={c.category} className="category-row">
+                      <div className="category-info">
+                        <span className="category-name">{c.category}</span>
+                        <span className="category-count">{c.count} mov.</span>
+                      </div>
+                      <div className="category-bar-wrapper">
+                        <div className="category-bar" style={{ width: `${pct}%` }}></div>
+                      </div>
+                      <div className="category-values">
+                        <span className="category-total">US${fmt(parseFloat(c.total))}</span>
+                        <span className="category-pct">{pct.toFixed(1)}%</span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
             {/* Movimientos por cuenta */}
             {metrics.movimientosPorCuenta.length > 0 && (
-              <div className="table-wrapper" style={{ marginTop: '1rem' }}>
+              <div className="table-wrapper" style={{ marginTop: '1.5rem' }}>
                 <table>
                   <thead>
                     <tr><th>Cuenta</th><th>Ingresos</th><th>Gastos</th><th>Balance</th></tr>
                   </thead>
                   <tbody>
-                    {metrics.movimientosPorCuenta.map((c) => (
-                      <tr key={c.account}>
-                        <td><strong>{c.account}</strong></td>
-                        <td className="amount" style={{ color: 'var(--green)' }}>${fmt(c.ingresos)}</td>
-                        <td className="amount" style={{ color: 'var(--red)' }}>${fmt(c.gastos)}</td>
-                        <td className="amount" style={{ color: c.balance >= 0 ? 'var(--green)' : 'var(--red)' }}>
-                          {c.balance >= 0 ? '+' : ''}{fmt(c.balance)}
-                        </td>
-                      </tr>
-                    ))}
+                    {metrics.movimientosPorCuenta.map((c) => {
+                      const isUsd = c.account.includes('USD') || c.account === 'ME DEBEN' || c.account === 'AHORROS';
+                      const sym = isUsd ? 'US$' : '$';
+                      return (
+                        <tr key={c.account}>
+                          <td><strong>{c.account}</strong></td>
+                          <td className="amount" style={{ color: 'var(--green)' }}>{sym}{fmt(c.ingresos)}</td>
+                          <td className="amount" style={{ color: 'var(--red)' }}>{sym}{fmt(c.gastos)}</td>
+                          <td className="amount" style={{ color: c.balance >= 0 ? 'var(--green)' : 'var(--red)' }}>
+                            {c.balance >= 0 ? '+' : ''}{sym}{fmt(c.balance)}
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>

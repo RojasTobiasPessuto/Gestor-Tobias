@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react';
 import { getAccounts, getCategories, createCategory, deleteCategory } from '../api';
 import type { Account, CategoryItem } from '../api';
 import { Plus, Trash2, ChevronDown, ChevronUp } from 'lucide-react';
+import TransactionReceipt from './TransactionReceipt';
+import type { ReceiptData } from './TransactionReceipt';
 
 interface Props {
   onSubmit: (data: {
@@ -26,6 +28,7 @@ export default function TransactionForm({ onSubmit, submitLabel, type }: Props) 
   const [submitting, setSubmitting] = useState(false);
   const [showCatManager, setShowCatManager] = useState(false);
   const [newCatName, setNewCatName] = useState('');
+  const [receipt, setReceipt] = useState<ReceiptData | null>(null);
 
   const loadCategories = () => getCategories().then(setCategories);
 
@@ -41,11 +44,20 @@ export default function TransactionForm({ onSubmit, submitLabel, type }: Props) 
     if (!accountId || !amount || !category) return;
     setSubmitting(true);
     try {
+      const acct = accounts.find((a) => a.id === parseInt(accountId));
       await onSubmit({
         amount: parseFloat(amount),
         account_id: parseInt(accountId),
         category,
         comment,
+        date,
+      });
+      setReceipt({
+        type,
+        amount: parseFloat(amount),
+        account: acct?.name || '',
+        category,
+        comment: comment || undefined,
         date,
       });
       setAmount('');
@@ -67,6 +79,10 @@ export default function TransactionForm({ onSubmit, submitLabel, type }: Props) 
     await deleteCategory(id);
     loadCategories();
   };
+
+  if (receipt) {
+    return <TransactionReceipt data={receipt} onClose={() => setReceipt(null)} />;
+  }
 
   return (
     <div>
@@ -106,7 +122,6 @@ export default function TransactionForm({ onSubmit, submitLabel, type }: Props) 
         </button>
       </form>
 
-      {/* Category manager toggle */}
       <button className="cat-toggle" onClick={() => setShowCatManager(!showCatManager)}>
         {showCatManager ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
         Administrar categorias

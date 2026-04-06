@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react';
 import { getAccounts, createTransaction } from '../api';
 import type { Account } from '../api';
 import toast from 'react-hot-toast';
+import TransactionReceipt from './TransactionReceipt';
+import type { ReceiptData } from './TransactionReceipt';
 
 export default function DolaresForm() {
   const [accounts, setAccounts] = useState<Account[]>([]);
@@ -11,6 +13,7 @@ export default function DolaresForm() {
   const [amount, setAmount] = useState('');
   const [rate, setRate] = useState('');
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
+  const [receipt, setReceipt] = useState<ReceiptData | null>(null);
 
   useEffect(() => { getAccounts().then(setAccounts); }, []);
 
@@ -21,8 +24,11 @@ export default function DolaresForm() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!fromId || !toId || !amount || !rate) return;
+    const txType = mode === 'VENTA' ? 'VENTA_DOLARES' : 'COMPRA_DOLARES';
+    const from = accounts.find((a) => a.id === parseInt(fromId));
+    const to = accounts.find((a) => a.id === parseInt(toId));
     await createTransaction({
-      type: mode === 'VENTA' ? 'VENTA_DOLARES' : 'COMPRA_DOLARES',
+      type: txType,
       amount: parseFloat(amount),
       account_id: parseInt(fromId),
       account_to_id: parseInt(toId),
@@ -30,11 +36,24 @@ export default function DolaresForm() {
       date,
     });
     toast.success(`${mode === 'VENTA' ? 'Venta' : 'Compra'} procesada`);
+    setReceipt({
+      type: txType,
+      amount: parseFloat(amount),
+      account: from?.name || '',
+      accountTo: to?.name || '',
+      date,
+      exchangeRate: parseFloat(rate),
+      converted,
+    });
     setAmount('');
     setRate('');
   };
 
   const fmt = (n: number) => n.toLocaleString('es-AR', { minimumFractionDigits: 2 });
+
+  if (receipt) {
+    return <TransactionReceipt data={receipt} onClose={() => setReceipt(null)} />;
+  }
 
   return (
     <div>
