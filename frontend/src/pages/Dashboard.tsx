@@ -3,7 +3,7 @@ import { getAccounts, getDollarRate, createTransaction, getAnalytics, getFilterO
 import type { Account, DollarRate, AnalyticsSummary, AnalyticsFilters, FilterOptions } from '../api';
 import {
   Wallet, DollarSign, TrendingUp, TrendingDown,
-  ArrowLeftRight, History, BarChart3,
+  ArrowLeftRight, History, BarChart3, HandCoins,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import Modal from '../components/Modal';
@@ -11,9 +11,14 @@ import TransactionForm from '../components/TransactionForm';
 import TransferForm from '../components/TransferForm';
 import DolaresForm from '../components/DolaresForm';
 import HistorialView from '../components/HistorialView';
+import DeudasView from '../components/DeudasView';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { Filter, X } from 'lucide-react';
+import {
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
+  PieChart, Pie, Cell, LineChart, Line,
+} from 'recharts';
 
 const fmt = (n: number) => n.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const fmtMonth = (m: string) => {
@@ -21,7 +26,7 @@ const fmtMonth = (m: string) => {
   return format(new Date(parseInt(y), parseInt(mo) - 1), 'MMM yyyy', { locale: es });
 };
 
-type ModalType = 'ingreso' | 'gasto' | 'transfer' | 'dolares' | 'historial' | 'metricas' | null;
+type ModalType = 'ingreso' | 'gasto' | 'transfer' | 'dolares' | 'historial' | 'metricas' | 'deudas' | null;
 
 export default function Dashboard() {
   const [accounts, setAccounts] = useState<Account[]>([]);
@@ -92,17 +97,79 @@ export default function Dashboard() {
 
   const arsAccounts = accounts.filter((a) => a.currency === 'ARS');
   const usdAccounts = accounts.filter((a) => a.currency === 'USD');
+  const meDebenAccount = accounts.find((a) => a.name === 'ME DEBEN');
+  const meDebenBalance = meDebenAccount ? Number(meDebenAccount.balance) : 0;
+
   const totalArs = arsAccounts.reduce((s, a) => s + Number(a.balance), 0);
   const totalUsd = usdAccounts.reduce((s, a) => s + Number(a.balance), 0);
+  const totalUsdSinDeuda = totalUsd - meDebenBalance;
   const promedio = rate?.promedio || 0;
   const totalEnPesos = totalArs + totalUsd * promedio;
+  const totalEnPesosSinDeuda = totalArs + totalUsdSinDeuda * promedio;
   const totalEnDolares = totalUsd + (promedio ? totalArs / promedio : 0);
+  const totalEnDolaresSinDeuda = totalUsdSinDeuda + (promedio ? totalArs / promedio : 0);
   const hasFilters = Object.values(filters).some((v) => v);
 
-  const maxBarArs = metrics ? Math.max(...metrics.monthlyData.map((m) => Math.max(m.gasArs, m.ingArs)), 1) : 1;
-  const maxBarUsd = metrics ? Math.max(...metrics.monthlyData.map((m) => Math.max(m.gasUsd, m.ingUsd)), 1) : 1;
-  const gastoCatArs = metrics ? metrics.gastosPorCategoria.filter(c => c.currency === 'ARS').reduce((s, c) => s + parseFloat(c.total), 0) : 0;
-  const gastoCatUsd = metrics ? metrics.gastosPorCategoria.filter(c => c.currency === 'USD').reduce((s, c) => s + parseFloat(c.total), 0) : 0;
+  // Convertir todo a ARS usando el promedio del dolar blue
+  const toArs = (amount: number, currency: string) =>
+    currency === 'USD' ? amount * promedio : amount;
+
+  // Totales convertidos a ARS
+  const totalIngresosArs = metrics
+    ? metrics.totales.ars.ingresos + metrics.totales.usd.ingresos * promedio
+    : 0;
+  const totalGastosArs = metrics
+    ? metrics.totales.ars.gastos + metrics.totales.usd.gastos * promedio
+    : 0;
+  const balanceArs = totalIngresosArs - totalGastosArs;
+  const tasaAhorro = totalIngresosArs > 0 ? (balanceArs / totalIngresosArs) * 100 : 0;
+
+  // Datos mensuales convertidos
+  const monthlyChartData = metrics
+    ? Object.values(
+        metrics.monthlyData.reduce<Record<string, { month: string; Ingresos: number; Gastos: number; Balance: number }>>((acc, m) => {
+          if (!acc[m.month]) acc[m.month] = { month: fmtMonth(m.month), Ingresos: 0, Gastos: 0, Balance: 0 };
+          acc[m.month].Ingresos += m.ingArs + m.ingUsd * promedio;
+          acc[m.month].Gastos += m.gasArs + m.gasUsd * promedio;
+          acc[m.month].Balance = acc[m.month].Ingresos - acc[m.month].Gastos;
+          return acc;
+        }, {}),
+      )
+    : [];
+
+  // Gastos por categoria (consolidados en ARS)
+  const gastosCatMap: Record<string, number> = {};
+  metrics?.gastosPorCategoria.forEach((c) => {
+    const v = toArs(parseFloat(c.total), c.currency);
+    gastosCatMap[c.category] = (gastosCatMap[c.category] || 0) + v;
+  });
+  const gastosCatData = Object.entries(gastosCatMap)
+    .map(([name, value]) => ({ name, value }))
+    .sort((a, b) => b.value - a.value);
+
+  // Ingresos por categoria
+  const ingresosCatMap: Record<string, number> = {};
+  metrics?.ingresosPorCategoria.forEach((c) => {
+    const v = toArs(parseFloat(c.total), c.currency);
+    ingresosCatMap[c.category] = (ingresosCatMap[c.category] || 0) + v;
+  });
+  const ingresosCatData = Object.entries(ingresosCatMap)
+    .map(([name, value]) => ({ name, value }))
+    .sort((a, b) => b.value - a.value);
+
+  // Cuentas en ARS
+  const cuentaChartData = metrics
+    ? metrics.movimientosPorCuenta.map((c) => {
+        const isUsd = c.account.includes('USD') || c.account === 'ME DEBEN' || c.account === 'AHORROS';
+        return {
+          name: c.account,
+          Ingresos: isUsd ? c.ingresos * promedio : c.ingresos,
+          Gastos: isUsd ? c.gastos * promedio : c.gastos,
+        };
+      })
+    : [];
+
+  const PIE_COLORS = ['#6366f1', '#22c55e', '#ef4444', '#f59e0b', '#3b82f6', '#8b5cf6', '#ec4899', '#14b8a6', '#f97316', '#a855f7'];
 
   return (
     <div className="dashboard">
@@ -126,6 +193,9 @@ export default function Dashboard() {
             <span className="dash-acct-balance">
               {a.currency === 'ARS' ? '$' : 'US$'}{fmt(Number(a.balance))}
             </span>
+            {a.currency === 'USD' && promedio > 0 && (
+              <span className="dash-acct-equiv">= ${fmt(Number(a.balance) * promedio)}</span>
+            )}
           </div>
         ))}
       </div>
@@ -144,20 +214,23 @@ export default function Dashboard() {
           <div>
             <span className="dt-label">Total Dolares</span>
             <span className="dt-value">US${fmt(totalUsd)}</span>
+            <span className="dt-sub">Sin deuda: US${fmt(totalUsdSinDeuda)}</span>
           </div>
         </div>
         {promedio > 0 && (
           <>
             <div className="dash-total accent">
               <div>
-                <span className="dt-label">Total en Pesos</span>
+                <span className="dt-label">Dinero Total (ARS)</span>
                 <span className="dt-value">${fmt(totalEnPesos)}</span>
+                <span className="dt-sub">Sin deuda: ${fmt(totalEnPesosSinDeuda)}</span>
               </div>
             </div>
             <div className="dash-total accent">
               <div>
-                <span className="dt-label">Total en Dolares</span>
+                <span className="dt-label">Dinero Total (USD)</span>
                 <span className="dt-value">US${fmt(totalEnDolares)}</span>
+                <span className="dt-sub">Sin deuda: US${fmt(totalEnDolaresSinDeuda)}</span>
               </div>
             </div>
           </>
@@ -185,6 +258,10 @@ export default function Dashboard() {
         <button className="action-btn historial" onClick={() => setModal('historial')}>
           <History size={22} />
           <span>Historial</span>
+        </button>
+        <button className="action-btn deudas" onClick={() => setModal('deudas')}>
+          <HandCoins size={22} />
+          <span>Deudas</span>
         </button>
       </div>
 
@@ -221,168 +298,153 @@ export default function Dashboard() {
 
         {metrics && !metricsLoading && (
           <>
-            {/* Resumen ARS */}
-            <h4 className="currency-title ars">ARS - Pesos</h4>
-            <div className="metrics-grid-3">
+            {/* Aclaracion de conversion */}
+            {promedio > 0 && (
+              <p className="conversion-hint">
+                Todos los valores estan en pesos. USD convertido a tasa promedio del Blue: ${fmt(promedio)}
+              </p>
+            )}
+
+            {/* Resumen total en ARS */}
+            <div className="metrics-grid-4">
               <div className="metric-card green">
-                <span className="metric-label">Ingresos ARS</span>
-                <span className="metric-value">${fmt(metrics.totales.ars.ingresos)}</span>
+                <span className="metric-label">Ingresos Totales</span>
+                <span className="metric-value">${fmt(totalIngresosArs)}</span>
               </div>
               <div className="metric-card red">
-                <span className="metric-label">Gastos ARS</span>
-                <span className="metric-value">${fmt(metrics.totales.ars.gastos)}</span>
+                <span className="metric-label">Gastos Totales</span>
+                <span className="metric-value">${fmt(totalGastosArs)}</span>
               </div>
-              <div className={`metric-card ${metrics.totales.ars.ingresos - metrics.totales.ars.gastos >= 0 ? 'green' : 'red'}`}>
-                <span className="metric-label">Balance ARS</span>
-                <span className="metric-value">${fmt(metrics.totales.ars.ingresos - metrics.totales.ars.gastos)}</span>
+              <div className={`metric-card ${balanceArs >= 0 ? 'green' : 'red'}`}>
+                <span className="metric-label">Balance Neto</span>
+                <span className="metric-value">${fmt(balanceArs)}</span>
+              </div>
+              <div className={`metric-card ${tasaAhorro >= 0 ? 'yellow' : 'red'}`}>
+                <span className="metric-label">Tasa de Ahorro</span>
+                <span className="metric-value">{tasaAhorro.toFixed(1)}%</span>
               </div>
             </div>
 
-            {/* Chart ARS */}
-            {metrics.monthlyData.some(m => m.ingArs > 0 || m.gasArs > 0) && (
-              <div className="chart-container">
-                {metrics.monthlyData.filter(m => m.ingArs > 0 || m.gasArs > 0).map((m) => (
-                  <div key={m.month} className="chart-row">
-                    <span className="chart-label">{fmtMonth(m.month)}</span>
-                    <div className="chart-bars">
-                      <div className="bar-group">
-                        <div className="bar bar-income" style={{ width: `${(m.ingArs / maxBarArs) * 100}%` }}>
-                          <span className="bar-text">${fmt(m.ingArs)}</span>
-                        </div>
-                        <div className="bar bar-expense" style={{ width: `${(m.gasArs / maxBarArs) * 100}%` }}>
-                          <span className="bar-text">${fmt(m.gasArs)}</span>
-                        </div>
-                      </div>
-                    </div>
-                    <span className={`chart-balance ${m.balanceArs >= 0 ? 'positive' : 'negative'}`}>
-                      {m.balanceArs >= 0 ? '+' : ''}{fmt(m.balanceArs)}
-                    </span>
-                  </div>
-                ))}
-                <div className="chart-legend">
-                  <span><span className="dot green-dot"></span> Ingresos</span>
-                  <span><span className="dot red-dot"></span> Gastos</span>
+            {/* Bar Chart: Ingresos vs Gastos por mes */}
+            {monthlyChartData.length > 0 && (
+              <div className="chart-card">
+                <h4 className="chart-title">Ingresos vs Gastos por Mes</h4>
+                <ResponsiveContainer width="100%" height={280}>
+                  <BarChart data={monthlyChartData}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#2e3244" />
+                    <XAxis dataKey="month" stroke="#8b8d9e" style={{ fontSize: '0.75rem' }} />
+                    <YAxis stroke="#8b8d9e" style={{ fontSize: '0.75rem' }} tickFormatter={(v) => `$${(v / 1000).toFixed(0)}k`} />
+                    <Tooltip
+                      contentStyle={{ background: '#1a1d27', border: '1px solid #2e3244', borderRadius: 8 }}
+                      formatter={(v) => `$${fmt(Number(v))}`}
+                    />
+                    <Legend wrapperStyle={{ fontSize: '0.8rem' }} />
+                    <Bar dataKey="Ingresos" fill="#22c55e" radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="Gastos" fill="#ef4444" radius={[4, 4, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            )}
+
+            {/* Line chart: Balance acumulado */}
+            {monthlyChartData.length > 1 && (
+              <div className="chart-card">
+                <h4 className="chart-title">Balance Mensual (Tendencia)</h4>
+                <ResponsiveContainer width="100%" height={220}>
+                  <LineChart data={monthlyChartData}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#2e3244" />
+                    <XAxis dataKey="month" stroke="#8b8d9e" style={{ fontSize: '0.75rem' }} />
+                    <YAxis stroke="#8b8d9e" style={{ fontSize: '0.75rem' }} tickFormatter={(v) => `$${(v / 1000).toFixed(0)}k`} />
+                    <Tooltip
+                      contentStyle={{ background: '#1a1d27', border: '1px solid #2e3244', borderRadius: 8 }}
+                      formatter={(v) => `$${fmt(Number(v))}`}
+                    />
+                    <Line type="monotone" dataKey="Balance" stroke="#6366f1" strokeWidth={2.5} dot={{ r: 4 }} />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+            )}
+
+            <div className="charts-row">
+              {/* Pie Chart: Gastos por categoria */}
+              {gastosCatData.length > 0 && (
+                <div className="chart-card half">
+                  <h4 className="chart-title">Gastos por Categoria</h4>
+                  <ResponsiveContainer width="100%" height={260}>
+                    <PieChart>
+                      <Pie
+                        data={gastosCatData.slice(0, 8)}
+                        dataKey="value"
+                        nameKey="name"
+                        cx="50%"
+                        cy="50%"
+                        outerRadius={85}
+                        innerRadius={45}
+                        paddingAngle={2}
+                      >
+                        {gastosCatData.slice(0, 8).map((_, i) => (
+                          <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />
+                        ))}
+                      </Pie>
+                      <Tooltip
+                        contentStyle={{ background: '#1a1d27', border: '1px solid #2e3244', borderRadius: 8 }}
+                        formatter={(v) => `$${fmt(Number(v))}`}
+                      />
+                      <Legend wrapperStyle={{ fontSize: '0.7rem' }} />
+                    </PieChart>
+                  </ResponsiveContainer>
                 </div>
-              </div>
-            )}
+              )}
 
-            {/* Gastos por categoria ARS */}
-            {metrics.gastosPorCategoria.filter(c => c.currency === 'ARS').length > 0 && (
-              <div className="category-list">
-                {metrics.gastosPorCategoria.filter(c => c.currency === 'ARS').slice(0, 8).map((c) => {
-                  const pct = gastoCatArs > 0 ? (parseFloat(c.total) / gastoCatArs) * 100 : 0;
-                  return (
-                    <div key={c.category} className="category-row">
-                      <div className="category-info">
-                        <span className="category-name">{c.category}</span>
-                        <span className="category-count">{c.count} mov.</span>
-                      </div>
-                      <div className="category-bar-wrapper">
-                        <div className="category-bar" style={{ width: `${pct}%` }}></div>
-                      </div>
-                      <div className="category-values">
-                        <span className="category-total">${fmt(parseFloat(c.total))}</span>
-                        <span className="category-pct">{pct.toFixed(1)}%</span>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-
-            {/* Resumen USD */}
-            <h4 className="currency-title usd" style={{ marginTop: '1.5rem' }}>USD - Dolares</h4>
-            <div className="metrics-grid-3">
-              <div className="metric-card green">
-                <span className="metric-label">Ingresos USD</span>
-                <span className="metric-value">US${fmt(metrics.totales.usd.ingresos)}</span>
-              </div>
-              <div className="metric-card red">
-                <span className="metric-label">Gastos USD</span>
-                <span className="metric-value">US${fmt(metrics.totales.usd.gastos)}</span>
-              </div>
-              <div className={`metric-card ${metrics.totales.usd.ingresos - metrics.totales.usd.gastos >= 0 ? 'green' : 'red'}`}>
-                <span className="metric-label">Balance USD</span>
-                <span className="metric-value">US${fmt(metrics.totales.usd.ingresos - metrics.totales.usd.gastos)}</span>
-              </div>
+              {/* Pie Chart: Ingresos por categoria */}
+              {ingresosCatData.length > 0 && (
+                <div className="chart-card half">
+                  <h4 className="chart-title">Fuentes de Ingreso</h4>
+                  <ResponsiveContainer width="100%" height={260}>
+                    <PieChart>
+                      <Pie
+                        data={ingresosCatData.slice(0, 8)}
+                        dataKey="value"
+                        nameKey="name"
+                        cx="50%"
+                        cy="50%"
+                        outerRadius={85}
+                        innerRadius={45}
+                        paddingAngle={2}
+                      >
+                        {ingresosCatData.slice(0, 8).map((_, i) => (
+                          <Cell key={i} fill={PIE_COLORS[(i + 2) % PIE_COLORS.length]} />
+                        ))}
+                      </Pie>
+                      <Tooltip
+                        contentStyle={{ background: '#1a1d27', border: '1px solid #2e3244', borderRadius: 8 }}
+                        formatter={(v) => `$${fmt(Number(v))}`}
+                      />
+                      <Legend wrapperStyle={{ fontSize: '0.7rem' }} />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
+              )}
             </div>
 
-            {/* Chart USD */}
-            {metrics.monthlyData.some(m => m.ingUsd > 0 || m.gasUsd > 0) && (
-              <div className="chart-container">
-                {metrics.monthlyData.filter(m => m.ingUsd > 0 || m.gasUsd > 0).map((m) => (
-                  <div key={m.month} className="chart-row">
-                    <span className="chart-label">{fmtMonth(m.month)}</span>
-                    <div className="chart-bars">
-                      <div className="bar-group">
-                        <div className="bar bar-income" style={{ width: `${(m.ingUsd / maxBarUsd) * 100}%` }}>
-                          <span className="bar-text">US${fmt(m.ingUsd)}</span>
-                        </div>
-                        <div className="bar bar-expense" style={{ width: `${(m.gasUsd / maxBarUsd) * 100}%` }}>
-                          <span className="bar-text">US${fmt(m.gasUsd)}</span>
-                        </div>
-                      </div>
-                    </div>
-                    <span className={`chart-balance ${m.balanceUsd >= 0 ? 'positive' : 'negative'}`}>
-                      {m.balanceUsd >= 0 ? '+' : ''}US${fmt(m.balanceUsd)}
-                    </span>
-                  </div>
-                ))}
-                <div className="chart-legend">
-                  <span><span className="dot green-dot"></span> Ingresos</span>
-                  <span><span className="dot red-dot"></span> Gastos</span>
-                </div>
-              </div>
-            )}
-
-            {/* Gastos por categoria USD */}
-            {metrics.gastosPorCategoria.filter(c => c.currency === 'USD').length > 0 && (
-              <div className="category-list">
-                {metrics.gastosPorCategoria.filter(c => c.currency === 'USD').slice(0, 8).map((c) => {
-                  const pct = gastoCatUsd > 0 ? (parseFloat(c.total) / gastoCatUsd) * 100 : 0;
-                  return (
-                    <div key={c.category} className="category-row">
-                      <div className="category-info">
-                        <span className="category-name">{c.category}</span>
-                        <span className="category-count">{c.count} mov.</span>
-                      </div>
-                      <div className="category-bar-wrapper">
-                        <div className="category-bar" style={{ width: `${pct}%` }}></div>
-                      </div>
-                      <div className="category-values">
-                        <span className="category-total">US${fmt(parseFloat(c.total))}</span>
-                        <span className="category-pct">{pct.toFixed(1)}%</span>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-
-            {/* Movimientos por cuenta */}
-            {metrics.movimientosPorCuenta.length > 0 && (
-              <div className="table-wrapper" style={{ marginTop: '1.5rem' }}>
-                <table>
-                  <thead>
-                    <tr><th>Cuenta</th><th>Ingresos</th><th>Gastos</th><th>Balance</th></tr>
-                  </thead>
-                  <tbody>
-                    {metrics.movimientosPorCuenta.map((c) => {
-                      const isUsd = c.account.includes('USD') || c.account === 'ME DEBEN' || c.account === 'AHORROS';
-                      const sym = isUsd ? 'US$' : '$';
-                      return (
-                        <tr key={c.account}>
-                          <td><strong>{c.account}</strong></td>
-                          <td className="amount" style={{ color: 'var(--green)' }}>{sym}{fmt(c.ingresos)}</td>
-                          <td className="amount" style={{ color: 'var(--red)' }}>{sym}{fmt(c.gastos)}</td>
-                          <td className="amount" style={{ color: c.balance >= 0 ? 'var(--green)' : 'var(--red)' }}>
-                            {c.balance >= 0 ? '+' : ''}{sym}{fmt(c.balance)}
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
+            {/* Bar chart horizontal: Movimientos por cuenta */}
+            {cuentaChartData.length > 0 && (
+              <div className="chart-card">
+                <h4 className="chart-title">Movimientos por Cuenta</h4>
+                <ResponsiveContainer width="100%" height={cuentaChartData.length * 50 + 60}>
+                  <BarChart data={cuentaChartData} layout="vertical">
+                    <CartesianGrid strokeDasharray="3 3" stroke="#2e3244" />
+                    <XAxis type="number" stroke="#8b8d9e" style={{ fontSize: '0.7rem' }} tickFormatter={(v) => `$${(v / 1000).toFixed(0)}k`} />
+                    <YAxis dataKey="name" type="category" stroke="#8b8d9e" style={{ fontSize: '0.7rem' }} width={100} />
+                    <Tooltip
+                      contentStyle={{ background: '#1a1d27', border: '1px solid #2e3244', borderRadius: 8 }}
+                      formatter={(v) => `$${fmt(Number(v))}`}
+                    />
+                    <Legend wrapperStyle={{ fontSize: '0.8rem' }} />
+                    <Bar dataKey="Ingresos" fill="#22c55e" radius={[0, 4, 4, 0]} />
+                    <Bar dataKey="Gastos" fill="#ef4444" radius={[0, 4, 4, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
               </div>
             )}
           </>
@@ -404,6 +466,9 @@ export default function Dashboard() {
       </Modal>
       <Modal open={modal === 'historial'} onClose={() => setModal(null)} title="Historial" wide>
         <HistorialView />
+      </Modal>
+      <Modal open={modal === 'deudas'} onClose={closeAndRefresh} title="Gestor de Deudas" wide>
+        <DeudasView onChange={() => { loadAccounts(); loadMetrics(filters); }} />
       </Modal>
     </div>
   );

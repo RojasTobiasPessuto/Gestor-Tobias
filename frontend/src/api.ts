@@ -47,10 +47,16 @@ export interface CreateTransactionPayload {
 
 // API calls
 export const getAccounts = () => api.get<Account[]>('/accounts').then((r) => r.data);
-export const getTransactions = (type?: TransactionType) =>
-  api.get<Transaction[]>('/transactions', { params: type ? { type } : {} }).then((r) => r.data);
+export const getTransactions = (type?: TransactionType, category?: string) => {
+  const params: Record<string, string> = {};
+  if (type) params.type = type;
+  if (category) params.category = category;
+  return api.get<Transaction[]>('/transactions', { params }).then((r) => r.data);
+};
 export const createTransaction = (data: CreateTransactionPayload) =>
   api.post<Transaction>('/transactions', data).then((r) => r.data);
+export const updateTransaction = (id: number, data: CreateTransactionPayload) =>
+  api.put<Transaction>(`/transactions/${id}`, data).then((r) => r.data);
 export const deleteTransaction = (id: number) => api.delete(`/transactions/${id}`);
 export const updateAccount = (id: number, data: Partial<Account>) =>
   api.patch<Account>(`/accounts/${id}`, data).then((r) => r.data);
@@ -100,6 +106,42 @@ export interface CategoryItem {
   name: string;
   type: 'INGRESO' | 'GASTO';
 }
+
+export interface Debt {
+  id: number;
+  type: 'ME_DEBEN' | 'YO_DEBO';
+  person: string;
+  amount: number;
+  currency: 'ARS' | 'USD';
+  description: string | null;
+  date: string;
+  status: 'PENDIENTE' | 'PAGADO';
+  paidDate: string | null;
+  paidAccountId: number | null;
+}
+
+export interface CreateDebtPayload {
+  type: 'ME_DEBEN' | 'YO_DEBO';
+  person: string;
+  amount: number;
+  currency: 'ARS' | 'USD';
+  description?: string;
+  date: string;
+}
+
+export const getDebts = (type?: string, status?: string) => {
+  const params: Record<string, string> = {};
+  if (type) params.type = type;
+  if (status) params.status = status;
+  return api.get<Debt[]>('/debts', { params }).then((r) => r.data);
+};
+export const createDebt = (data: CreateDebtPayload) =>
+  api.post<Debt>('/debts', data).then((r) => r.data);
+export const updateDebt = (id: number, data: Partial<CreateDebtPayload>) =>
+  api.patch<Debt>(`/debts/${id}`, data).then((r) => r.data);
+export const payDebt = (id: number, data: { account_id: number; paidDate?: string }) =>
+  api.patch<Debt>(`/debts/${id}/pay`, data).then((r) => r.data);
+export const deleteDebt = (id: number) => api.delete(`/debts/${id}`);
 
 export const getCategories = () => api.get<CategoryItem[]>('/categories').then((r) => r.data);
 export const createCategory = (data: { name: string; type?: string }) =>

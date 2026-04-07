@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Delete, Param, Body, Query, ParseIntPipe } from '@nestjs/common';
+import { Controller, Get, Post, Put, Delete, Param, Body, Query, ParseIntPipe } from '@nestjs/common';
 import { TransactionsService } from './transactions.service.js';
 import { CreateTransactionDto } from './transaction.dto.js';
 import { TransactionType } from './transaction.entity.js';
@@ -8,8 +8,8 @@ export class TransactionsController {
   constructor(private readonly service: TransactionsService) {}
 
   @Get()
-  findAll(@Query('type') type?: TransactionType) {
-    return this.service.findAll(type);
+  findAll(@Query('type') type?: TransactionType, @Query('category') category?: string) {
+    return this.service.findAll(type, category);
   }
 
   @Get(':id')
@@ -20,6 +20,11 @@ export class TransactionsController {
   @Post()
   create(@Body() dto: CreateTransactionDto) {
     return this.service.create(dto);
+  }
+
+  @Put(':id')
+  update(@Param('id', ParseIntPipe) id: number, @Body() dto: CreateTransactionDto) {
+    return this.service.update(id, dto);
   }
 
   @Delete(':id')
