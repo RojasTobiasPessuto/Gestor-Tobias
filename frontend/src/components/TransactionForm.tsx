@@ -1,18 +1,20 @@
 import { useEffect, useState } from 'react';
 import { getAccounts, getCategories, createCategory, deleteCategory } from '../api';
 import type { Account, CategoryItem } from '../api';
-import { Plus, Trash2, ChevronDown, ChevronUp } from 'lucide-react';
+import { Plus, Trash2, ChevronDown, ChevronUp, X } from 'lucide-react';
 import TransactionReceipt from './TransactionReceipt';
 import type { ReceiptData } from './TransactionReceipt';
 
+interface SubmitData {
+  amount: number;
+  account_id: number;
+  categories: string[];
+  comment: string;
+  date: string;
+}
+
 interface Props {
-  onSubmit: (data: {
-    amount: number;
-    account_id: number;
-    category: string;
-    comment: string;
-    date: string;
-  }) => Promise<void>;
+  onSubmit: (data: SubmitData) => Promise<void>;
   submitLabel: string;
   type: 'INGRESO' | 'GASTO';
 }
@@ -22,12 +24,13 @@ export default function TransactionForm({ onSubmit, submitLabel, type }: Props) 
   const [categories, setCategories] = useState<CategoryItem[]>([]);
   const [accountId, setAccountId] = useState('');
   const [amount, setAmount] = useState('');
-  const [category, setCategory] = useState('');
+  const [selectedCats, setSelectedCats] = useState<string[]>([]);
   const [comment, setComment] = useState('');
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
   const [submitting, setSubmitting] = useState(false);
   const [showCatManager, setShowCatManager] = useState(false);
   const [newCatName, setNewCatName] = useState('');
+  const [catSearch, setCatSearch] = useState('');
   const [receipt, setReceipt] = useState<ReceiptData | null>(null);
 
   const loadCategories = () => getCategories().then(setCategories);
@@ -38,31 +41,49 @@ export default function TransactionForm({ onSubmit, submitLabel, type }: Props) 
   }, []);
 
   const filtered = categories.filter((c) => c.type === type);
+  const searchableAvailable = filtered.filter(
+    (c) => !selectedCats.includes(c.name) && c.name.toLowerCase().includes(catSearch.toLowerCase()),
+  );
+
+  const toggleCategory = (name: string) => {
+    setSelectedCats((prev) =>
+      prev.includes(name) ? prev.filter((c) => c !== name) : [...prev, name],
+    );
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!accountId || !amount || !category) return;
+    if (!accountId || !amount || selectedCats.length === 0 || submitting) return;
     setSubmitting(true);
     try {
       const acct = accounts.find((a) => a.id === parseInt(accountId));
+      const balanceBefore = acct ? Number(acct.balance) : 0;
+      const amt = parseFloat(amount);
+      const balanceAfter = type === 'INGRESO' ? balanceBefore + amt : balanceBefore - amt;
       await onSubmit({
-        amount: parseFloat(amount),
+        amount: amt,
         account_id: parseInt(accountId),
-        category,
+        categories: selectedCats,
         comment,
         date,
       });
       setReceipt({
         type,
-        amount: parseFloat(amount),
+        amount: amt,
         account: acct?.name || '',
-        category,
+        currency: acct?.currency || 'ARS',
+        categories: selectedCats,
         comment: comment || undefined,
         date,
+        balanceBefore,
+        balanceAfter,
       });
       setAmount('');
       setComment('');
-      setCategory('');
+      setSelectedCats([]);
+      // Refrescar accounts para tener el balance actualizado
+      const updated = await getAccounts();
+      setAccounts(updated);
     } finally {
       setSubmitting(false);
     }
@@ -100,15 +121,51 @@ export default function TransactionForm({ onSubmit, submitLabel, type }: Props) 
           Monto
           <input type="number" step="0.01" value={amount} onChange={(e) => setAmount(e.target.value)} required />
         </label>
-        <label>
-          Categoria
-          <select value={category} onChange={(e) => setCategory(e.target.value)} required>
-            <option value="">Seleccionar...</option>
-            {filtered.map((c) => (
-              <option key={c.id} value={c.name}>{c.name}</option>
-            ))}
-          </select>
-        </label>
+
+        <div className="multi-cat-field">
+          <span className="multi-cat-label">Categorias</span>
+          {selectedCats.length > 0 && (
+            <div className="cat-chips">
+              {selectedCats.map((c) => (
+                <span key={c} className="cat-chip selected">
+                  {c}
+                  <button type="button" onClick={() => toggleCategory(c)}><X size={11} /></button>
+                </span>
+              ))}
+            </div>
+          )}
+          <input
+            type="text"
+            className="cat-search-input"
+            placeholder="Buscar categoria..."
+            value={catSearch}
+            onChange={(e) => setCatSearch(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && searchableAvailable.length > 0) {
+                e.preventDefault();
+                toggleCategory(searchableAvailable[0].name);
+                setCatSearch('');
+              }
+            }}
+          />
+          <div className="cat-options">
+            {searchableAvailable.length === 0 ? (
+              <span className="cat-empty">Sin coincidencias</span>
+            ) : (
+              searchableAvailable.map((c) => (
+                <button
+                  key={c.id}
+                  type="button"
+                  className="cat-option"
+                  onClick={() => { toggleCategory(c.name); setCatSearch(''); }}
+                >
+                  + {c.name}
+                </button>
+              ))
+            )}
+          </div>
+        </div>
+
         <label>
           Comentario
           <input type="text" value={comment} onChange={(e) => setComment(e.target.value)} />
@@ -117,7 +174,7 @@ export default function TransactionForm({ onSubmit, submitLabel, type }: Props) 
           Fecha
           <input type="date" value={date} onChange={(e) => setDate(e.target.value)} required />
         </label>
-        <button type="submit" disabled={submitting}>
+        <button type="submit" disabled={submitting || selectedCats.length === 0}>
           {submitting ? 'Procesando...' : submitLabel}
         </button>
       </form>

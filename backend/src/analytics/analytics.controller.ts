@@ -11,26 +11,31 @@ export class AnalyticsController {
     @InjectRepository(Account) private readonly acctRepo: Repository<Account>,
   ) {}
 
+  private parseCategories(value?: string | string[]): string[] | undefined {
+    if (!value) return undefined;
+    const arr = Array.isArray(value) ? value : value.split(',').map((s) => s.trim()).filter(Boolean);
+    return arr.length > 0 ? arr : undefined;
+  }
+
   private applyFilters(
     qb: SelectQueryBuilder<Transaction>,
     alias: string,
-    filters: { desde?: string; hasta?: string; category?: string; account_id?: string },
+    filters: { desde?: string; hasta?: string; categories?: string[]; account_id?: string },
   ) {
     if (filters.desde) qb.andWhere(`${alias}.date >= :desde`, { desde: filters.desde });
     if (filters.hasta) qb.andWhere(`${alias}.date <= :hasta`, { hasta: filters.hasta });
-    if (filters.category) qb.andWhere(`${alias}.category = :category`, { category: filters.category });
+    if (filters.categories && filters.categories.length > 0) {
+      qb.andWhere(`${alias}.categories && :cats`, { cats: filters.categories });
+    }
     if (filters.account_id) qb.andWhere(`${alias}.account_id = :account_id`, { account_id: parseInt(filters.account_id) });
     return qb;
   }
 
   @Get('filters')
   async getFilterOptions() {
-    const categories = await this.txRepo
-      .createQueryBuilder('t')
-      .select('DISTINCT t.category', 'category')
-      .where('t.category IS NOT NULL')
-      .orderBy('t.category', 'ASC')
-      .getRawMany();
+    const categoriesRaw: { category: string }[] = await this.txRepo.query(
+      `SELECT DISTINCT unnest(categories) AS category FROM transactions ORDER BY category ASC`,
+    );
 
     const accounts = await this.acctRepo.find({ order: { id: 'ASC' } });
 
@@ -41,7 +46,7 @@ export class AnalyticsController {
       .getRawOne();
 
     return {
-      categories: categories.map((c) => c.category),
+      categories: categoriesRaw.map((c) => c.category),
       accounts: accounts.map((a) => ({ id: a.id, name: a.name })),
       dateRange: { min: dateRange.min, max: dateRange.max },
     };
@@ -51,36 +56,50 @@ export class AnalyticsController {
   async getSummary(
     @Query('desde') desde?: string,
     @Query('hasta') hasta?: string,
-    @Query('category') category?: string,
+    @Query('categories') categoriesQ?: string | string[],
     @Query('account_id') account_id?: string,
   ) {
-    const filters = { desde, hasta, category, account_id };
+    const categories = this.parseCategories(categoriesQ);
+    const filters = { desde, hasta, categories, account_id };
 
-    // Gastos por categoría + moneda
-    const gastosCatQb = this.txRepo
-      .createQueryBuilder('t')
-      .innerJoin('t.account', 'a')
-      .select('t.category', 'category')
-      .addSelect('a.currency', 'currency')
-      .addSelect('SUM(t.amount)', 'total')
-      .addSelect('COUNT(*)', 'count')
-      .where("t.type = 'GASTO'")
-      .andWhere('t.category IS NOT NULL');
-    this.applyFilters(gastosCatQb, 't', filters);
-    const gastosPorCategoria = await gastosCatQb.groupBy('t.category').addGroupBy('a.currency').orderBy('total', 'DESC').getRawMany();
+    // Construir clausulas WHERE para queries raw
+    const params: unknown[] = [];
+    const wheres: string[] = [];
+    const addParam = (val: unknown): string => {
+      params.push(val);
+      return `$${params.length}`;
+    };
+    if (desde) wheres.push(`t.date >= ${addParam(desde)}`);
+    if (hasta) wheres.push(`t.date <= ${addParam(hasta)}`);
+    if (categories && categories.length > 0) wheres.push(`t.categories && ${addParam(categories)}`);
+    if (account_id) wheres.push(`t.account_id = ${addParam(parseInt(account_id))}`);
+    const whereExtra = wheres.length > 0 ? ' AND ' + wheres.join(' AND ') : '';
 
-    // Ingresos por categoría + moneda
-    const ingresosCatQb = this.txRepo
-      .createQueryBuilder('t')
-      .innerJoin('t.account', 'a')
-      .select('t.category', 'category')
-      .addSelect('a.currency', 'currency')
-      .addSelect('SUM(t.amount)', 'total')
-      .addSelect('COUNT(*)', 'count')
-      .where("t.type = 'INGRESO'")
-      .andWhere('t.category IS NOT NULL');
-    this.applyFilters(ingresosCatQb, 't', filters);
-    const ingresosPorCategoria = await ingresosCatQb.groupBy('t.category').addGroupBy('a.currency').orderBy('total', 'DESC').getRawMany();
+    // Gastos por categoria + moneda (con UNNEST)
+    const gastosPorCategoria: { category: string; currency: string; total: string; count: string }[] =
+      await this.txRepo.query(
+        `SELECT unnest(t.categories) AS category, a.currency AS currency,
+                SUM(t.amount) AS total, COUNT(*) AS count
+         FROM transactions t
+         INNER JOIN accounts a ON a.id = t.account_id
+         WHERE t.type = 'GASTO'${whereExtra}
+         GROUP BY category, a.currency
+         ORDER BY total DESC`,
+        params,
+      );
+
+    // Ingresos por categoria + moneda (con UNNEST)
+    const ingresosPorCategoria: { category: string; currency: string; total: string; count: string }[] =
+      await this.txRepo.query(
+        `SELECT unnest(t.categories) AS category, a.currency AS currency,
+                SUM(t.amount) AS total, COUNT(*) AS count
+         FROM transactions t
+         INNER JOIN accounts a ON a.id = t.account_id
+         WHERE t.type = 'INGRESO'${whereExtra}
+         GROUP BY category, a.currency
+         ORDER BY total DESC`,
+        params,
+      );
 
     // Por mes + moneda
     const porMesQb = this.txRepo
@@ -136,7 +155,7 @@ export class AnalyticsController {
       if (row.type === 'GASTO') totales[cur].gastos = parseFloat(row.total);
     }
 
-    // Gasto diario (siempre sin filtros de categoría/cuenta para que sea representativo)
+    // Gasto diario (ultimos 30 y 90 dias)
     const hace30 = new Date();
     hace30.setDate(hace30.getDate() - 30);
     const gastos30Qb = this.txRepo
@@ -145,7 +164,7 @@ export class AnalyticsController {
       .where("t.type = 'GASTO'")
       .andWhere('t.date >= :d30', { d30: hace30.toISOString().slice(0, 10) });
     if (filters.account_id) gastos30Qb.andWhere('t.account_id = :aid30', { aid30: parseInt(filters.account_id) });
-    if (filters.category) gastos30Qb.andWhere('t.category = :cat30', { cat30: filters.category });
+    if (categories && categories.length > 0) gastos30Qb.andWhere('t.categories && :cats30', { cats30: categories });
     const gastos30d = await gastos30Qb.getRawOne();
 
     const hace90 = new Date();
@@ -156,7 +175,7 @@ export class AnalyticsController {
       .where("t.type = 'GASTO'")
       .andWhere('t.date >= :d90', { d90: hace90.toISOString().slice(0, 10) });
     if (filters.account_id) gastos90Qb.andWhere('t.account_id = :aid90', { aid90: parseInt(filters.account_id) });
-    if (filters.category) gastos90Qb.andWhere('t.category = :cat90', { cat90: filters.category });
+    if (categories && categories.length > 0) gastos90Qb.andWhere('t.categories && :cats90', { cats90: categories });
     const gastos90d = await gastos90Qb.getRawOne();
 
     // Top gastos
@@ -167,7 +186,7 @@ export class AnalyticsController {
     this.applyFilters(topQb, 't', filters);
     const topGastos = await topQb.orderBy('t.amount', 'DESC').limit(10).getMany();
 
-    // Movimientos por cuenta (ingresos y gastos)
+    // Movimientos por cuenta
     const movPorCuentaQb = this.txRepo
       .createQueryBuilder('t')
       .innerJoin('t.account', 'a')
@@ -200,21 +219,19 @@ export class AnalyticsController {
       gasCount: d.gasCount,
     }));
 
-    // Recurrentes
-    const recQb = this.txRepo
-      .createQueryBuilder('t')
-      .select('t.category', 'category')
-      .addSelect("COUNT(DISTINCT TO_CHAR(t.date, 'YYYY-MM'))", 'meses')
-      .addSelect('AVG(t.amount)', 'promedio')
-      .addSelect('SUM(t.amount)', 'total')
-      .where("t.type = 'GASTO'")
-      .andWhere('t.category IS NOT NULL');
-    this.applyFilters(recQb, 't', filters);
-    const categoriasRecurrentes = await recQb
-      .groupBy('t.category')
-      .having("COUNT(DISTINCT TO_CHAR(t.date, 'YYYY-MM')) >= 3")
-      .orderBy('total', 'DESC')
-      .getRawMany();
+    // Recurrentes (con UNNEST)
+    const categoriasRecurrentesRaw: { category: string; meses: string; promedio: string; total: string }[] =
+      await this.txRepo.query(
+        `SELECT unnest(categories) AS category,
+                COUNT(DISTINCT TO_CHAR(date, 'YYYY-MM')) AS meses,
+                AVG(amount) AS promedio,
+                SUM(amount) AS total
+         FROM transactions
+         WHERE type = 'GASTO'
+         GROUP BY category
+         HAVING COUNT(DISTINCT TO_CHAR(date, 'YYYY-MM')) >= 3
+         ORDER BY total DESC`,
+      );
 
     return {
       totales,
@@ -227,13 +244,13 @@ export class AnalyticsController {
       monthlyData,
       topGastos: topGastos.map((t) => ({
         amount: Number(t.amount),
-        category: t.category,
+        categories: t.categories,
         comment: t.comment,
         date: t.date,
         account: t.account?.name,
       })),
       movimientosPorCuenta,
-      categoriasRecurrentes: categoriasRecurrentes.map((r) => ({
+      categoriasRecurrentes: categoriasRecurrentesRaw.map((r) => ({
         category: r.category,
         meses: parseInt(r.meses),
         promedio: parseFloat(r.promedio),

@@ -12,35 +12,52 @@ export default function TransferForm() {
   const [amount, setAmount] = useState('');
   const [comment, setComment] = useState('');
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
+  const [submitting, setSubmitting] = useState(false);
   const [receipt, setReceipt] = useState<ReceiptData | null>(null);
 
   useEffect(() => { getAccounts().then(setAccounts); }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!fromId || !toId || !amount) return;
+    if (!fromId || !toId || !amount || submitting) return;
     if (fromId === toId) { toast.error('Las cuentas deben ser diferentes'); return; }
-    const from = accounts.find((a) => a.id === parseInt(fromId));
-    const to = accounts.find((a) => a.id === parseInt(toId));
-    await createTransaction({
-      type: 'TRANSFERENCIA',
-      amount: parseFloat(amount),
-      account_id: parseInt(fromId),
-      account_to_id: parseInt(toId),
-      comment: comment || undefined,
-      date,
-    });
-    toast.success('Transferencia realizada');
-    setReceipt({
-      type: 'TRANSFERENCIA',
-      amount: parseFloat(amount),
-      account: from?.name || '',
-      accountTo: to?.name || '',
-      comment: comment || undefined,
-      date,
-    });
-    setAmount('');
-    setComment('');
+    setSubmitting(true);
+    try {
+      const from = accounts.find((a) => a.id === parseInt(fromId));
+      const to = accounts.find((a) => a.id === parseInt(toId));
+      const amt = parseFloat(amount);
+      const balanceBefore = from ? Number(from.balance) : 0;
+      const balanceBeforeTo = to ? Number(to.balance) : 0;
+      await createTransaction({
+        type: 'TRANSFERENCIA',
+        amount: amt,
+        account_id: parseInt(fromId),
+        account_to_id: parseInt(toId),
+        comment: comment || undefined,
+        date,
+      });
+      toast.success('Transferencia realizada');
+      setReceipt({
+        type: 'TRANSFERENCIA',
+        amount: amt,
+        account: from?.name || '',
+        currency: from?.currency,
+        accountTo: to?.name || '',
+        currencyTo: to?.currency,
+        comment: comment || undefined,
+        date,
+        balanceBefore,
+        balanceAfter: balanceBefore - amt,
+        balanceBeforeTo,
+        balanceAfterTo: balanceBeforeTo + amt,
+      });
+      setAmount('');
+      setComment('');
+      const updated = await getAccounts();
+      setAccounts(updated);
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   if (receipt) {
@@ -75,7 +92,7 @@ export default function TransferForm() {
         Fecha
         <input type="date" value={date} onChange={(e) => setDate(e.target.value)} required />
       </label>
-      <button type="submit">Transferir</button>
+      <button type="submit" disabled={submitting}>{submitting ? 'Procesando...' : 'Transferir'}</button>
     </form>
   );
 }

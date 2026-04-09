@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
-import { getAccounts, getDollarRate, createTransaction, getAnalytics, getFilterOptions } from '../api';
+import { getAccounts, getDollarRate, createTransaction, getAnalytics, getFilterOptions, adjustAccountBalance } from '../api';
 import type { Account, DollarRate, AnalyticsSummary, AnalyticsFilters, FilterOptions } from '../api';
 import {
   Wallet, DollarSign, TrendingUp, TrendingDown,
@@ -34,6 +34,12 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [modal, setModal] = useState<ModalType>(null);
 
+  // Adjust balance state
+  const [adjustingAccount, setAdjustingAccount] = useState<Account | null>(null);
+  const [newBalance, setNewBalance] = useState('');
+  const [adjustComment, setAdjustComment] = useState('');
+  const [savingAdjust, setSavingAdjust] = useState(false);
+
   // Metrics state
   const [metrics, setMetrics] = useState<AnalyticsSummary | null>(null);
   const [filterOpts, setFilterOpts] = useState<FilterOptions | null>(null);
@@ -67,14 +73,14 @@ export default function Dashboard() {
     loadMetrics(filters);
   };
 
-  const handleIngreso = async (data: { amount: number; account_id: number; category: string; comment: string; date: string }) => {
+  const handleIngreso = async (data: { amount: number; account_id: number; categories: string[]; comment: string; date: string }) => {
     await createTransaction({ type: 'INGRESO', ...data });
     toast.success('Ingreso registrado');
     loadAccounts();
     loadMetrics(filters);
   };
 
-  const handleGasto = async (data: { amount: number; account_id: number; category: string; comment: string; date: string }) => {
+  const handleGasto = async (data: { amount: number; account_id: number; categories: string[]; comment: string; date: string }) => {
     await createTransaction({ type: 'GASTO', ...data });
     toast.success('Gasto registrado');
     loadAccounts();
@@ -188,7 +194,12 @@ export default function Dashboard() {
       {/* Saldos */}
       <div className="dash-accounts">
         {accounts.map((a) => (
-          <div key={a.id} className={`dash-account-card ${a.currency.toLowerCase()}`}>
+          <div
+            key={a.id}
+            className={`dash-account-card ${a.currency.toLowerCase()}`}
+            onClick={() => { setAdjustingAccount(a); setNewBalance(String(a.balance)); setAdjustComment(''); }}
+            title="Click para ajustar saldo"
+          >
             <span className="dash-acct-name">{a.name}</span>
             <span className="dash-acct-balance">
               {a.currency === 'ARS' ? '$' : 'US$'}{fmt(Number(a.balance))}
@@ -283,12 +294,34 @@ export default function Dashboard() {
             <input type="date" value={filters.hasta || ''} onChange={(e) => updateFilter('hasta', e.target.value)} />
           </label>
           <label>
-            Categoria
-            <select value={filters.category || ''} onChange={(e) => updateFilter('category', e.target.value)}>
-              <option value="">Todas</option>
-              {filterOpts?.categories.map((c) => <option key={c} value={c}>{c}</option>)}
+            Categorias
+            <select
+              value=""
+              onChange={(e) => {
+                const v = e.target.value;
+                if (!v) return;
+                const current = filters.categories ? filters.categories.split(',').filter(Boolean) : [];
+                if (!current.includes(v)) updateFilter('categories', [...current, v].join(','));
+              }}
+            >
+              <option value="">+ Agregar...</option>
+              {filterOpts?.categories
+                .filter((c) => !(filters.categories || '').split(',').includes(c))
+                .map((c) => <option key={c} value={c}>{c}</option>)}
             </select>
           </label>
+          {filters.categories && (
+            <div className="cat-chips" style={{ marginBottom: '0.4rem' }}>
+              {filters.categories.split(',').filter(Boolean).map((c) => (
+                <span key={c} className="cat-chip selected" onClick={() => {
+                  const next = filters.categories!.split(',').filter((x) => x && x !== c).join(',');
+                  updateFilter('categories', next);
+                }}>
+                  {c} <X size={11} />
+                </span>
+              ))}
+            </div>
+          )}
           {hasFilters && (
             <button className="clear-filters" onClick={clearFilters}><X size={12} /> Limpiar</button>
           )}
@@ -469,6 +502,74 @@ export default function Dashboard() {
       </Modal>
       <Modal open={modal === 'deudas'} onClose={closeAndRefresh} title="Gestor de Deudas" wide>
         <DeudasView onChange={() => { loadAccounts(); loadMetrics(filters); }} />
+      </Modal>
+
+      {/* Modal de ajuste de saldo */}
+      <Modal
+        open={adjustingAccount !== null}
+        onClose={() => setAdjustingAccount(null)}
+        title={adjustingAccount ? `Ajustar saldo - ${adjustingAccount.name}` : ''}
+      >
+        {adjustingAccount && (
+          <form
+            className="form-card"
+            onSubmit={async (e) => {
+              e.preventDefault();
+              if (savingAdjust) return;
+              setSavingAdjust(true);
+              try {
+                await adjustAccountBalance(
+                  adjustingAccount.id,
+                  parseFloat(newBalance),
+                  adjustComment || undefined,
+                );
+                toast.success('Saldo ajustado');
+                setAdjustingAccount(null);
+                loadAccounts();
+                loadMetrics(filters);
+              } catch (err: unknown) {
+                toast.error(err instanceof Error ? err.message : 'Error al ajustar');
+              } finally {
+                setSavingAdjust(false);
+              }
+            }}
+          >
+            <div className="receipt-row">
+              <span>Saldo actual</span>
+              <strong>
+                {adjustingAccount.currency === 'USD' ? 'US$' : '$'}{fmt(Number(adjustingAccount.balance))}
+              </strong>
+            </div>
+            <label>
+              Nuevo saldo
+              <input
+                type="number"
+                step="0.01"
+                value={newBalance}
+                onChange={(e) => setNewBalance(e.target.value)}
+                required
+              />
+            </label>
+            <label>
+              Comentario (opcional)
+              <input
+                type="text"
+                value={adjustComment}
+                onChange={(e) => setAdjustComment(e.target.value)}
+                placeholder="Motivo del ajuste"
+              />
+            </label>
+            {newBalance && !isNaN(parseFloat(newBalance)) && (
+              <div className="preview">
+                Diferencia: {parseFloat(newBalance) - Number(adjustingAccount.balance) >= 0 ? '+' : ''}
+                {fmt(parseFloat(newBalance) - Number(adjustingAccount.balance))}
+              </div>
+            )}
+            <button type="submit" disabled={savingAdjust}>
+              {savingAdjust ? 'Procesando...' : 'Confirmar ajuste'}
+            </button>
+          </form>
+        )}
       </Modal>
     </div>
   );

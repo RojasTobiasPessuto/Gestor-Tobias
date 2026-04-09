@@ -13,6 +13,7 @@ export default function DolaresForm() {
   const [amount, setAmount] = useState('');
   const [rate, setRate] = useState('');
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
+  const [submitting, setSubmitting] = useState(false);
   const [receipt, setReceipt] = useState<ReceiptData | null>(null);
 
   useEffect(() => { getAccounts().then(setAccounts); }, []);
@@ -23,30 +24,46 @@ export default function DolaresForm() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!fromId || !toId || !amount || !rate) return;
-    const txType = mode === 'VENTA' ? 'VENTA_DOLARES' : 'COMPRA_DOLARES';
-    const from = accounts.find((a) => a.id === parseInt(fromId));
-    const to = accounts.find((a) => a.id === parseInt(toId));
-    await createTransaction({
-      type: txType,
-      amount: parseFloat(amount),
-      account_id: parseInt(fromId),
-      account_to_id: parseInt(toId),
-      exchangeRate: parseFloat(rate),
-      date,
-    });
-    toast.success(`${mode === 'VENTA' ? 'Venta' : 'Compra'} procesada`);
-    setReceipt({
-      type: txType,
-      amount: parseFloat(amount),
-      account: from?.name || '',
-      accountTo: to?.name || '',
-      date,
-      exchangeRate: parseFloat(rate),
-      converted,
-    });
-    setAmount('');
-    setRate('');
+    if (!fromId || !toId || !amount || !rate || submitting) return;
+    setSubmitting(true);
+    try {
+      const txType = mode === 'VENTA' ? 'VENTA_DOLARES' : 'COMPRA_DOLARES';
+      const from = accounts.find((a) => a.id === parseInt(fromId));
+      const to = accounts.find((a) => a.id === parseInt(toId));
+      const amt = parseFloat(amount);
+      const balanceBefore = from ? Number(from.balance) : 0;
+      const balanceBeforeTo = to ? Number(to.balance) : 0;
+      await createTransaction({
+        type: txType,
+        amount: amt,
+        account_id: parseInt(fromId),
+        account_to_id: parseInt(toId),
+        exchangeRate: parseFloat(rate),
+        date,
+      });
+      toast.success(`${mode === 'VENTA' ? 'Venta' : 'Compra'} procesada`);
+      setReceipt({
+        type: txType,
+        amount: amt,
+        account: from?.name || '',
+        currency: from?.currency,
+        accountTo: to?.name || '',
+        currencyTo: to?.currency,
+        date,
+        exchangeRate: parseFloat(rate),
+        converted,
+        balanceBefore,
+        balanceAfter: balanceBefore - amt,
+        balanceBeforeTo,
+        balanceAfterTo: balanceBeforeTo + converted,
+      });
+      setAmount('');
+      setRate('');
+      const updated = await getAccounts();
+      setAccounts(updated);
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const fmt = (n: number) => n.toLocaleString('es-AR', { minimumFractionDigits: 2 });
@@ -93,7 +110,9 @@ export default function DolaresForm() {
             {mode === 'VENTA' ? `Recibis: $${fmt(converted)} ARS` : `Recibis: US$${fmt(converted)}`}
           </div>
         )}
-        <button type="submit">{mode === 'VENTA' ? 'Vender Dolares' : 'Comprar Dolares'}</button>
+        <button type="submit" disabled={submitting}>
+          {submitting ? 'Procesando...' : mode === 'VENTA' ? 'Vender Dolares' : 'Comprar Dolares'}
+        </button>
       </form>
     </div>
   );

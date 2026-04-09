@@ -1,4 +1,4 @@
-import { IsEnum, IsNumber, IsOptional, IsString, IsDateString } from 'class-validator';
+import { IsEnum, IsNumber, IsOptional, IsString, IsDateString, IsArray } from 'class-validator';
 import { TransactionType } from './transaction.entity.js';
 
 export class CreateTransactionDto {
@@ -15,9 +15,10 @@ export class CreateTransactionDto {
   @IsOptional()
   account_to_id?: number;
 
-  @IsString()
+  @IsArray()
+  @IsString({ each: true })
   @IsOptional()
-  category?: string;
+  categories?: string[];
 
   @IsString()
   @IsOptional()

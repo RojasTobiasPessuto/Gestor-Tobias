@@ -8,8 +8,12 @@ export class TransactionsController {
   constructor(private readonly service: TransactionsService) {}
 
   @Get()
-  findAll(@Query('type') type?: TransactionType, @Query('category') category?: string) {
-    return this.service.findAll(type, category);
+  findAll(@Query('type') type?: TransactionType, @Query('categories') categories?: string | string[]) {
+    let cats: string[] | undefined;
+    if (categories) {
+      cats = Array.isArray(categories) ? categories : categories.split(',').filter(Boolean);
+    }
+    return this.service.findAll(type, cats);
   }
 
   @Get(':id')

@@ -13,11 +13,17 @@ export class TransactionsService {
     private readonly dataSource: DataSource,
   ) {}
 
-  findAll(type?: TransactionType, category?: string): Promise<Transaction[]> {
-    const where: { type?: TransactionType; category?: string } = {};
-    if (type) where.type = type;
-    if (category) where.category = category;
-    return this.repo.find({ where, order: { date: 'DESC', id: 'DESC' } });
+  async findAll(type?: TransactionType, categories?: string[]): Promise<Transaction[]> {
+    const qb = this.repo.createQueryBuilder('t')
+      .leftJoinAndSelect('t.account', 'a')
+      .leftJoinAndSelect('t.accountTo', 'at');
+    if (type) qb.andWhere('t.type = :type', { type });
+    if (categories && categories.length > 0) {
+      // Operador && de PostgreSQL: arrays con al menos un elemento en comun (OR)
+      qb.andWhere('t.categories && :cats', { cats: categories });
+    }
+    qb.orderBy('t.date', 'DESC').addOrderBy('t.id', 'DESC');
+    return qb.getMany();
   }
 
   async findOne(id: number): Promise<Transaction> {
@@ -86,6 +92,12 @@ export class TransactionsService {
         await accountRepo.save(accountTo);
         break;
       }
+
+      case TransactionType.AJUSTE:
+        // El monto puede ser positivo o negativo. Aplicamos directo al saldo.
+        account.balance = Number(account.balance) + sign * amount;
+        await accountRepo.save(account);
+        break;
     }
   }
 
@@ -105,7 +117,7 @@ export class TransactionsService {
       const tx = txRepo.create({
         ...dto,
         account_to_id: dto.account_to_id ?? null,
-        category: dto.category ?? null,
+        categories: dto.categories ?? [],
         comment: dto.comment ?? null,
         exchangeRate: dto.exchangeRate ?? null,
       });
@@ -145,7 +157,7 @@ export class TransactionsService {
       old.amount = dto.amount;
       old.account_id = dto.account_id;
       old.account_to_id = dto.account_to_id ?? null;
-      old.category = dto.category ?? null;
+      old.categories = dto.categories ?? [];
       old.comment = dto.comment ?? null;
       old.exchangeRate = dto.exchangeRate ?? null;
       old.date = dto.date;

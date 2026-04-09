@@ -26,6 +26,14 @@ export class AccountsController {
     return this.service.update(id, dto);
   }
 
+  @Patch(':id/adjust')
+  adjust(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() body: { balance: number; comment?: string },
+  ) {
+    return this.service.adjustBalance(id, body.balance, body.comment);
+  }
+
   @Delete(':id')
   remove(@Param('id', ParseIntPipe) id: number) {
     return this.service.remove(id);

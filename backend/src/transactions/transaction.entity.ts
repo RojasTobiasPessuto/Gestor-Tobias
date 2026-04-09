@@ -7,6 +7,7 @@ export enum TransactionType {
   TRANSFERENCIA = 'TRANSFERENCIA',
   VENTA_DOLARES = 'VENTA_DOLARES',
   COMPRA_DOLARES = 'COMPRA_DOLARES',
+  AJUSTE = 'AJUSTE',
 }
 
 @Entity('transactions')
@@ -34,8 +35,8 @@ export class Transaction {
   @Column({ type: 'int', nullable: true })
   account_to_id!: number | null;
 
-  @Column({ type: 'varchar', nullable: true })
-  category!: string | null;
+  @Column({ type: 'text', array: true, default: () => "'{}'", nullable: false })
+  categories!: string[];
 
   @Column({ type: 'varchar', nullable: true })
   comment!: string | null;
