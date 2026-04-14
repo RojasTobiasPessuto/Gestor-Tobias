@@ -13,15 +13,21 @@ export class TransactionsService {
     private readonly dataSource: DataSource,
   ) {}
 
-  async findAll(type?: TransactionType, categories?: string[]): Promise<Transaction[]> {
+  async findAll(
+    type?: TransactionType,
+    categories?: string[],
+    desde?: string,
+    hasta?: string,
+  ): Promise<Transaction[]> {
     const qb = this.repo.createQueryBuilder('t')
       .leftJoinAndSelect('t.account', 'a')
       .leftJoinAndSelect('t.accountTo', 'at');
     if (type) qb.andWhere('t.type = :type', { type });
     if (categories && categories.length > 0) {
-      // Operador && de PostgreSQL: arrays con al menos un elemento en comun (OR)
       qb.andWhere('t.categories && :cats', { cats: categories });
     }
+    if (desde) qb.andWhere('t.date >= :desde', { desde });
+    if (hasta) qb.andWhere('t.date <= :hasta', { hasta });
     qb.orderBy('t.date', 'DESC').addOrderBy('t.id', 'DESC');
     return qb.getMany();
   }

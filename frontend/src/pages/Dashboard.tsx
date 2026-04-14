@@ -12,6 +12,7 @@ import TransferForm from '../components/TransferForm';
 import DolaresForm from '../components/DolaresForm';
 import HistorialView from '../components/HistorialView';
 import DeudasView from '../components/DeudasView';
+import CategoryTransactionsView from '../components/CategoryTransactionsView';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { Filter, X } from 'lucide-react';
@@ -39,6 +40,9 @@ export default function Dashboard() {
   const [newBalance, setNewBalance] = useState('');
   const [adjustComment, setAdjustComment] = useState('');
   const [savingAdjust, setSavingAdjust] = useState(false);
+
+  // Category drilldown state
+  const [drilldown, setDrilldown] = useState<{ category: string; type: 'INGRESO' | 'GASTO' } | null>(null);
 
   // Metrics state
   const [metrics, setMetrics] = useState<AnalyticsSummary | null>(null);
@@ -402,7 +406,7 @@ export default function Dashboard() {
               {/* Pie Chart: Gastos por categoria */}
               {gastosCatData.length > 0 && (
                 <div className="chart-card half">
-                  <h4 className="chart-title">Gastos por Categoria</h4>
+                  <h4 className="chart-title">Gastos por Categoria <span className="chart-hint">(click para ver transacciones)</span></h4>
                   <ResponsiveContainer width="100%" height={260}>
                     <PieChart>
                       <Pie
@@ -414,6 +418,8 @@ export default function Dashboard() {
                         outerRadius={85}
                         innerRadius={45}
                         paddingAngle={2}
+                        onClick={(d: { name: string }) => setDrilldown({ category: d.name, type: 'GASTO' })}
+                        style={{ cursor: 'pointer' }}
                       >
                         {gastosCatData.slice(0, 8).map((_, i) => (
                           <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />
@@ -426,13 +432,21 @@ export default function Dashboard() {
                       <Legend wrapperStyle={{ fontSize: '0.7rem' }} />
                     </PieChart>
                   </ResponsiveContainer>
+                  <ul className="cat-clickable-list">
+                    {gastosCatData.slice(0, 8).map((c) => (
+                      <li key={c.name} onClick={() => setDrilldown({ category: c.name, type: 'GASTO' })}>
+                        <span>{c.name}</span>
+                        <strong>${fmt(c.value)}</strong>
+                      </li>
+                    ))}
+                  </ul>
                 </div>
               )}
 
               {/* Pie Chart: Ingresos por categoria */}
               {ingresosCatData.length > 0 && (
                 <div className="chart-card half">
-                  <h4 className="chart-title">Fuentes de Ingreso</h4>
+                  <h4 className="chart-title">Fuentes de Ingreso <span className="chart-hint">(click para ver transacciones)</span></h4>
                   <ResponsiveContainer width="100%" height={260}>
                     <PieChart>
                       <Pie
@@ -444,6 +458,8 @@ export default function Dashboard() {
                         outerRadius={85}
                         innerRadius={45}
                         paddingAngle={2}
+                        onClick={(d: { name: string }) => setDrilldown({ category: d.name, type: 'INGRESO' })}
+                        style={{ cursor: 'pointer' }}
                       >
                         {ingresosCatData.slice(0, 8).map((_, i) => (
                           <Cell key={i} fill={PIE_COLORS[(i + 2) % PIE_COLORS.length]} />
@@ -456,6 +472,14 @@ export default function Dashboard() {
                       <Legend wrapperStyle={{ fontSize: '0.7rem' }} />
                     </PieChart>
                   </ResponsiveContainer>
+                  <ul className="cat-clickable-list">
+                    {ingresosCatData.slice(0, 8).map((c) => (
+                      <li key={c.name} onClick={() => setDrilldown({ category: c.name, type: 'INGRESO' })}>
+                        <span>{c.name}</span>
+                        <strong>${fmt(c.value)}</strong>
+                      </li>
+                    ))}
+                  </ul>
                 </div>
               )}
             </div>
@@ -502,6 +526,23 @@ export default function Dashboard() {
       </Modal>
       <Modal open={modal === 'deudas'} onClose={closeAndRefresh} title="Gestor de Deudas" wide>
         <DeudasView onChange={() => { loadAccounts(); loadMetrics(filters); }} />
+      </Modal>
+
+      {/* Modal de transacciones por categoria */}
+      <Modal
+        open={drilldown !== null}
+        onClose={() => setDrilldown(null)}
+        title={drilldown ? `${drilldown.type === 'INGRESO' ? 'Ingresos' : 'Gastos'} de "${drilldown.category}"` : ''}
+        wide
+      >
+        {drilldown && (
+          <CategoryTransactionsView
+            category={drilldown.category}
+            type={drilldown.type}
+            desde={filters.desde}
+            hasta={filters.hasta}
+          />
+        )}
       </Modal>
 
       {/* Modal de ajuste de saldo */}

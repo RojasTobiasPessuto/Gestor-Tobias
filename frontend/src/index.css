@@ -777,6 +777,43 @@ body {
   letter-spacing: 0.04em;
 }
 
+.chart-hint {
+  font-size: 0.65rem;
+  font-weight: 400;
+  color: var(--text-muted);
+  text-transform: none;
+  letter-spacing: 0;
+  margin-left: 0.4rem;
+}
+
+.cat-clickable-list {
+  list-style: none;
+  margin-top: 0.75rem;
+  padding: 0;
+  max-height: 140px;
+  overflow-y: auto;
+}
+
+.cat-clickable-list li {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.4rem 0.6rem;
+  font-size: 0.78rem;
+  border-bottom: 1px solid var(--border);
+  cursor: pointer;
+  transition: background 0.15s;
+  border-radius: 4px;
+}
+
+.cat-clickable-list li:hover {
+  background: rgba(99, 102, 241, 0.08);
+}
+
+.cat-clickable-list li:last-child { border-bottom: none; }
+.cat-clickable-list li span { color: var(--text-muted); }
+.cat-clickable-list li strong { color: var(--text); font-variant-numeric: tabular-nums; }
+
 .charts-row {
   display: grid;
   grid-template-columns: 1fr 1fr;

@@ -48,10 +48,17 @@ export interface CreateTransactionPayload {
 
 // API calls
 export const getAccounts = () => api.get<Account[]>('/accounts').then((r) => r.data);
-export const getTransactions = (type?: TransactionType, categories?: string[]) => {
+export const getTransactions = (
+  type?: TransactionType,
+  categories?: string[],
+  desde?: string,
+  hasta?: string,
+) => {
   const params: Record<string, string> = {};
   if (type) params.type = type;
   if (categories && categories.length > 0) params.categories = categories.join(',');
+  if (desde) params.desde = desde;
+  if (hasta) params.hasta = hasta;
   return api.get<Transaction[]>('/transactions', { params }).then((r) => r.data);
 };
 export const createTransaction = (data: CreateTransactionPayload) =>
