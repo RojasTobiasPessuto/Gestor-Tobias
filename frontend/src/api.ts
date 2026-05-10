@@ -128,6 +128,44 @@ export interface Debt {
   status: 'PENDIENTE' | 'PAGADO';
   paidDate: string | null;
   paidAccountId: number | null;
+  templateId: number | null;
+  installmentGroup: string | null;
+  installmentNumber: number | null;
+  installmentTotal: number | null;
+  installmentDescription: string | null;
+}
+
+export interface RecurringTemplate {
+  id: number;
+  name: string;
+  person: string;
+  defaultAmount: number;
+  currency: 'ARS' | 'USD';
+  description: string | null;
+  active: boolean;
+  lastGeneratedMonth: string | null;
+}
+
+export interface CreateTemplatePayload {
+  name: string;
+  person: string;
+  defaultAmount: number;
+  currency: 'ARS' | 'USD';
+  description?: string;
+}
+
+export interface GenerateMonthItem {
+  templateId: number;
+  amount: number;
+}
+
+export interface CreateInstallmentPayload {
+  description: string;
+  person: string;
+  totalAmount: number;
+  installments: number;
+  currency: 'ARS' | 'USD';
+  firstDate: string;
 }
 
 export interface CreateDebtPayload {
@@ -149,9 +187,24 @@ export const createDebt = (data: CreateDebtPayload) =>
   api.post<Debt>('/debts', data).then((r) => r.data);
 export const updateDebt = (id: number, data: Partial<CreateDebtPayload>) =>
   api.patch<Debt>(`/debts/${id}`, data).then((r) => r.data);
-export const payDebt = (id: number, data: { account_id: number; paidDate?: string }) =>
+export const payDebt = (id: number, data: { account_id: number; paidDate?: string; amount?: number }) =>
   api.patch<Debt>(`/debts/${id}/pay`, data).then((r) => r.data);
 export const deleteDebt = (id: number) => api.delete(`/debts/${id}`);
+
+// Plantillas recurrentes
+export const getTemplates = (activeOnly?: boolean) =>
+  api.get<RecurringTemplate[]>('/debts/templates', { params: activeOnly ? { active: 'true' } : {} }).then((r) => r.data);
+export const createTemplate = (data: CreateTemplatePayload) =>
+  api.post<RecurringTemplate>('/debts/templates', data).then((r) => r.data);
+export const updateTemplate = (id: number, data: Partial<CreateTemplatePayload & { active: boolean }>) =>
+  api.patch<RecurringTemplate>(`/debts/templates/${id}`, data).then((r) => r.data);
+export const deleteTemplate = (id: number) => api.delete(`/debts/templates/${id}`);
+
+export const generateMonthlyDebts = (data: { month: string; date: string; items?: GenerateMonthItem[] }) =>
+  api.post<Debt[]>('/debts/generate-month', data).then((r) => r.data);
+
+export const createInstallmentPurchase = (data: CreateInstallmentPayload) =>
+  api.post<Debt[]>('/debts/installments', data).then((r) => r.data);
 
 export const getCategories = () => api.get<CategoryItem[]>('/categories').then((r) => r.data);
 export const createCategory = (data: { name: string; type?: string }) =>

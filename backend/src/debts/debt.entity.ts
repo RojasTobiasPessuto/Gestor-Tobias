@@ -42,6 +42,21 @@ export class Debt {
   @Column({ type: 'int', nullable: true })
   paidAccountId!: number | null;
 
+  @Column({ type: 'int', nullable: true })
+  templateId!: number | null;
+
+  @Column({ type: 'varchar', nullable: true })
+  installmentGroup!: string | null;
+
+  @Column({ type: 'int', nullable: true })
+  installmentNumber!: number | null;
+
+  @Column({ type: 'int', nullable: true })
+  installmentTotal!: number | null;
+
+  @Column({ type: 'varchar', nullable: true })
+  installmentDescription!: string | null;
+
   @CreateDateColumn()
   createdAt!: Date;
 }

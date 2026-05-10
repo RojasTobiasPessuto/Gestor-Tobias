@@ -418,7 +418,7 @@ export default function Dashboard() {
                         outerRadius={85}
                         innerRadius={45}
                         paddingAngle={2}
-                        onClick={(d: { name: string }) => setDrilldown({ category: d.name, type: 'GASTO' })}
+                        onClick={(d) => d?.name && setDrilldown({ category: String(d.name), type: 'GASTO' })}
                         style={{ cursor: 'pointer' }}
                       >
                         {gastosCatData.slice(0, 8).map((_, i) => (
@@ -458,7 +458,7 @@ export default function Dashboard() {
                         outerRadius={85}
                         innerRadius={45}
                         paddingAngle={2}
-                        onClick={(d: { name: string }) => setDrilldown({ category: d.name, type: 'INGRESO' })}
+                        onClick={(d) => d?.name && setDrilldown({ category: String(d.name), type: 'INGRESO' })}
                         style={{ cursor: 'pointer' }}
                       >
                         {ingresosCatData.slice(0, 8).map((_, i) => (

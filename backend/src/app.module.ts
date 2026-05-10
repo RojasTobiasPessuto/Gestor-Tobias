@@ -9,6 +9,7 @@ import { CategoriesModule } from './categories/categories.module.js';
 import { Category } from './categories/category.entity.js';
 import { DebtsModule } from './debts/debts.module.js';
 import { Debt } from './debts/debt.entity.js';
+import { RecurringTemplate } from './debts/recurring-template.entity.js';
 import { Account } from './accounts/account.entity.js';
 import { Transaction } from './transactions/transaction.entity.js';
 import { SeedService } from './seed/seed.service.js';
@@ -23,7 +24,7 @@ import { SeedService } from './seed/seed.service.js';
       username: process.env['DB_USER'],
       password: process.env['DB_PASSWORD'],
       database: process.env['DB_NAME'],
-      entities: [Account, Transaction, Category, Debt],
+      entities: [Account, Transaction, Category, Debt, RecurringTemplate],
       synchronize: true,
       ssl: { rejectUnauthorized: false },
       extra: {

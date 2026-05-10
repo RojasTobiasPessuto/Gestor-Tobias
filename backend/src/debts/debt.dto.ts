@@ -51,4 +51,90 @@ export class PayDebtDto {
   @IsDateString()
   @IsOptional()
   paidDate?: string;
+
+  @IsNumber()
+  @IsOptional()
+  amount?: number;
+}
+
+export class CreateTemplateDto {
+  @IsString()
+  name!: string;
+
+  @IsString()
+  person!: string;
+
+  @IsNumber()
+  defaultAmount!: number;
+
+  @IsIn(['ARS', 'USD'])
+  currency!: 'ARS' | 'USD';
+
+  @IsString()
+  @IsOptional()
+  description?: string;
+}
+
+export class UpdateTemplateDto {
+  @IsString()
+  @IsOptional()
+  name?: string;
+
+  @IsString()
+  @IsOptional()
+  person?: string;
+
+  @IsNumber()
+  @IsOptional()
+  defaultAmount?: number;
+
+  @IsIn(['ARS', 'USD'])
+  @IsOptional()
+  currency?: 'ARS' | 'USD';
+
+  @IsString()
+  @IsOptional()
+  description?: string;
+
+  @IsOptional()
+  active?: boolean;
+}
+
+export class GenerateMonthItemDto {
+  @IsNumber()
+  templateId!: number;
+
+  @IsNumber()
+  amount!: number;
+}
+
+export class GenerateMonthDto {
+  @IsString()
+  month!: string; // YYYY-MM
+
+  @IsDateString()
+  date!: string; // YYYY-MM-DD
+
+  @IsOptional()
+  items?: GenerateMonthItemDto[];
+}
+
+export class CreateInstallmentDto {
+  @IsString()
+  description!: string;
+
+  @IsString()
+  person!: string;
+
+  @IsNumber()
+  totalAmount!: number;
+
+  @IsNumber()
+  installments!: number;
+
+  @IsIn(['ARS', 'USD'])
+  currency!: 'ARS' | 'USD';
+
+  @IsDateString()
+  firstDate!: string;
 }
