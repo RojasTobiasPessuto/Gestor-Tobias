@@ -133,6 +133,7 @@ export interface Debt {
   installmentNumber: number | null;
   installmentTotal: number | null;
   installmentDescription: string | null;
+  categories: string[];
 }
 
 export interface RecurringTemplate {
@@ -144,6 +145,7 @@ export interface RecurringTemplate {
   description: string | null;
   active: boolean;
   lastGeneratedMonth: string | null;
+  categories: string[];
 }
 
 export interface CreateTemplatePayload {
@@ -152,6 +154,7 @@ export interface CreateTemplatePayload {
   defaultAmount: number;
   currency: 'ARS' | 'USD';
   description?: string;
+  categories?: string[];
 }
 
 export interface GenerateMonthItem {
@@ -166,6 +169,7 @@ export interface CreateInstallmentPayload {
   installments: number;
   currency: 'ARS' | 'USD';
   firstDate: string;
+  categories?: string[];
 }
 
 export interface CreateDebtPayload {

@@ -8,6 +8,7 @@ import type { Debt, Account, RecurringTemplate, GenerateMonthItem } from '../api
 import toast from 'react-hot-toast';
 import { Plus, Pencil, Trash2, Check, X, DollarSign, RefreshCw, Layers } from 'lucide-react';
 import { formatDateDisplay } from '../utils/date';
+import CategoryMultiSelect from './CategoryMultiSelect';
 
 interface Props {
   onChange?: () => void;
@@ -55,6 +56,7 @@ export default function DeudasView({ onChange }: Props) {
   const [instCount, setInstCount] = useState('3');
   const [instCurrency, setInstCurrency] = useState<'ARS' | 'USD'>('ARS');
   const [instFirstDate, setInstFirstDate] = useState(currentDate());
+  const [instCategories, setInstCategories] = useState<string[]>([]);
 
   // Form plantilla
   const [showTemplateForm, setShowTemplateForm] = useState(false);
@@ -64,6 +66,7 @@ export default function DeudasView({ onChange }: Props) {
   const [tplAmount, setTplAmount] = useState('');
   const [tplCurrency, setTplCurrency] = useState<'ARS' | 'USD'>('ARS');
   const [tplDescription, setTplDescription] = useState('');
+  const [tplCategories, setTplCategories] = useState<string[]>([]);
 
   const loadDebts = () => {
     if (tab === 'PLANTILLAS') return;
@@ -208,6 +211,7 @@ export default function DeudasView({ onChange }: Props) {
         installments: parseInt(instCount),
         currency: instCurrency,
         firstDate: instFirstDate,
+        categories: instCategories,
       });
       toast.success(`${created.length} cuotas generadas`);
       setShowInstallment(false);
@@ -216,6 +220,7 @@ export default function DeudasView({ onChange }: Props) {
       setInstTotal('');
       setInstCount('3');
       setInstFirstDate(currentDate());
+      setInstCategories([]);
       loadDebts();
       onChange?.();
     } catch (e: unknown) {
@@ -230,6 +235,7 @@ export default function DeudasView({ onChange }: Props) {
     setTplAmount('');
     setTplCurrency('ARS');
     setTplDescription('');
+    setTplCategories([]);
     setShowTemplateForm(false);
     setEditTplId(null);
   };
@@ -241,6 +247,7 @@ export default function DeudasView({ onChange }: Props) {
     setTplAmount(String(t.defaultAmount));
     setTplCurrency(t.currency);
     setTplDescription(t.description || '');
+    setTplCategories(t.categories || []);
     setShowTemplateForm(true);
   };
 
@@ -253,6 +260,7 @@ export default function DeudasView({ onChange }: Props) {
       defaultAmount: parseFloat(tplAmount),
       currency: tplCurrency,
       description: tplDescription || undefined,
+      categories: tplCategories,
     };
     try {
       if (editTplId) {
@@ -452,6 +460,9 @@ export default function DeudasView({ onChange }: Props) {
                                 {d.installmentDescription ? ` — ${d.installmentDescription}` : ''}
                               </span>
                             )}
+                            {(d.categories || []).map((c) => (
+                              <span key={c} className="cat-chip-small">{c}</span>
+                            ))}
                           </div>
                         </div>
                       </td>
@@ -549,6 +560,7 @@ export default function DeudasView({ onChange }: Props) {
                 Descripcion
                 <input type="text" value={tplDescription} onChange={(e) => setTplDescription(e.target.value)} />
               </label>
+              <CategoryMultiSelect selected={tplCategories} onChange={setTplCategories} type="GASTO" />
               <div style={{ display: 'flex', gap: '0.5rem' }}>
                 <button type="submit">{editTplId ? 'Guardar' : 'Crear'}</button>
                 <button type="button" onClick={resetTplForm} style={{ background: 'var(--bg-input)' }}>Cancelar</button>
@@ -566,7 +578,8 @@ export default function DeudasView({ onChange }: Props) {
                     <th>Nombre</th>
                     <th>Persona</th>
                     <th>Ultimo monto</th>
-                    <th>Ultimo mes generado</th>
+                    <th>Categorias</th>
+                    <th>Ultimo mes</th>
                     <th>Activa</th>
                     <th>Acciones</th>
                   </tr>
@@ -577,6 +590,15 @@ export default function DeudasView({ onChange }: Props) {
                       <td><strong>{t.name}</strong></td>
                       <td>{t.person}</td>
                       <td className="amount">{t.currency === 'USD' ? 'US$' : '$'}{fmt(Number(t.defaultAmount))}</td>
+                      <td>
+                        {(t.categories || []).length > 0 ? (
+                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.2rem' }}>
+                            {(t.categories || []).map((c) => (
+                              <span key={c} className="cat-chip-small">{c}</span>
+                            ))}
+                          </div>
+                        ) : '-'}
+                      </td>
                       <td>{t.lastGeneratedMonth || '-'}</td>
                       <td>
                         <button
@@ -724,6 +746,7 @@ export default function DeudasView({ onChange }: Props) {
                   Cada cuota: {instCurrency === 'USD' ? 'US$' : '$'}{fmt(parseFloat(instTotal) / parseInt(instCount))}
                 </div>
               )}
+              <CategoryMultiSelect selected={instCategories} onChange={setInstCategories} type="GASTO" />
               <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.25rem' }}>
                 <button type="submit" className="receipt-btn"><Check size={14} /> Generar cuotas</button>
                 <button type="button" onClick={() => setShowInstallment(false)} className="receipt-btn" style={{ background: 'var(--bg-input)' }}>

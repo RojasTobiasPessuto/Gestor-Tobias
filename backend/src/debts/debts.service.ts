@@ -48,6 +48,7 @@ export class DebtsService {
         installmentNumber: null,
         installmentTotal: null,
         installmentDescription: null,
+        categories: dto.categories ?? [],
       });
 
       if (dto.type === DebtType.ME_DEBEN) {
@@ -85,6 +86,7 @@ export class DebtsService {
       if (dto.currency !== undefined) debt.currency = dto.currency;
       if (dto.description !== undefined) debt.description = dto.description;
       if (dto.date !== undefined) debt.date = dto.date;
+      if (dto.categories !== undefined) debt.categories = dto.categories;
 
       return debtRepo.save(debt);
     });
@@ -156,7 +158,7 @@ export class DebtsService {
           amount,
           account_id: targetAccount.id,
           account_to_id: null,
-          categories: ['ME DEBE'],
+          categories: (debt.categories && debt.categories.length > 0) ? debt.categories : ['ME DEBE'],
           comment: `Pago de deuda: ${debt.person}${debt.description ? ' - ' + debt.description : ''}`,
           exchangeRate: null,
           date: paidDate,
@@ -171,7 +173,7 @@ export class DebtsService {
           amount,
           account_id: targetAccount.id,
           account_to_id: null,
-          categories: ['PRESTAMO'],
+          categories: (debt.categories && debt.categories.length > 0) ? debt.categories : ['PRESTAMO'],
           comment: `Pago de deuda: ${debt.person}${debt.description ? ' - ' + debt.description : ''}`,
           exchangeRate: null,
           date: paidDate,
@@ -213,6 +215,7 @@ export class DebtsService {
       description: dto.description ?? null,
       active: true,
       lastGeneratedMonth: null,
+      categories: dto.categories ?? [],
     });
     return this.templateRepo.save(template);
   }
@@ -226,6 +229,7 @@ export class DebtsService {
     if (dto.currency !== undefined) template.currency = dto.currency;
     if (dto.description !== undefined) template.description = dto.description;
     if (dto.active !== undefined) template.active = dto.active;
+    if (dto.categories !== undefined) template.categories = dto.categories;
     return this.templateRepo.save(template);
   }
 
@@ -270,6 +274,7 @@ export class DebtsService {
           installmentNumber: null,
           installmentTotal: null,
           installmentDescription: null,
+          categories: t.categories ?? [],
         });
         const saved = await debtRepo.save(debt);
         created.push(saved);
@@ -311,6 +316,7 @@ export class DebtsService {
           installmentNumber: i + 1,
           installmentTotal: dto.installments,
           installmentDescription: dto.description,
+          categories: dto.categories ?? [],
         });
         const saved = await debtRepo.save(debt);
         created.push(saved);

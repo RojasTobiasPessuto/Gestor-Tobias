@@ -1,4 +1,4 @@
-import { IsString, IsNumber, IsEnum, IsOptional, IsDateString, IsIn } from 'class-validator';
+import { IsString, IsNumber, IsEnum, IsOptional, IsDateString, IsIn, IsArray } from 'class-validator';
 import { DebtType } from './debt.entity.js';
 
 export class CreateDebtDto {
@@ -20,6 +20,11 @@ export class CreateDebtDto {
 
   @IsDateString()
   date!: string;
+
+  @IsArray()
+  @IsString({ each: true })
+  @IsOptional()
+  categories?: string[];
 }
 
 export class UpdateDebtDto {
@@ -42,6 +47,11 @@ export class UpdateDebtDto {
   @IsDateString()
   @IsOptional()
   date?: string;
+
+  @IsArray()
+  @IsString({ each: true })
+  @IsOptional()
+  categories?: string[];
 }
 
 export class PayDebtDto {
@@ -73,6 +83,11 @@ export class CreateTemplateDto {
   @IsString()
   @IsOptional()
   description?: string;
+
+  @IsArray()
+  @IsString({ each: true })
+  @IsOptional()
+  categories?: string[];
 }
 
 export class UpdateTemplateDto {
@@ -98,6 +113,11 @@ export class UpdateTemplateDto {
 
   @IsOptional()
   active?: boolean;
+
+  @IsArray()
+  @IsString({ each: true })
+  @IsOptional()
+  categories?: string[];
 }
 
 export class GenerateMonthItemDto {
@@ -137,4 +157,9 @@ export class CreateInstallmentDto {
 
   @IsDateString()
   firstDate!: string;
+
+  @IsArray()
+  @IsString({ each: true })
+  @IsOptional()
+  categories?: string[];
 }

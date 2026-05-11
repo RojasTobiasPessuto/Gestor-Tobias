@@ -57,6 +57,9 @@ export class Debt {
   @Column({ type: 'varchar', nullable: true })
   installmentDescription!: string | null;
 
+  @Column({ type: 'text', array: true, default: () => "'{}'", nullable: false })
+  categories!: string[];
+
   @CreateDateColumn()
   createdAt!: Date;
 }
