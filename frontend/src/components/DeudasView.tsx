@@ -7,7 +7,7 @@ import {
 import type { Debt, Account, RecurringTemplate, GenerateMonthItem } from '../api';
 import toast from 'react-hot-toast';
 import { Plus, Pencil, Trash2, Check, X, DollarSign, RefreshCw, Layers } from 'lucide-react';
-import { formatDateDisplay } from '../utils/date';
+import { formatDateDisplay, todayBA, currentMonthBA } from '../utils/date';
 import CategoryMultiSelect from './CategoryMultiSelect';
 
 interface Props {
@@ -15,11 +15,8 @@ interface Props {
 }
 
 const fmt = (n: number) => n.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-const currentMonth = () => {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-};
-const currentDate = () => new Date().toISOString().slice(0, 10);
+const currentMonth = () => currentMonthBA();
+const currentDate = () => todayBA();
 
 export default function DeudasView({ onChange }: Props) {
   const [tab, setTab] = useState<'ME_DEBEN' | 'YO_DEBO' | 'PLANTILLAS'>('ME_DEBEN');

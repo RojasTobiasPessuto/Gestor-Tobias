@@ -6,6 +6,7 @@ import { Debt, DebtType, DebtStatus } from './debt.entity.js';
 import { RecurringTemplate } from './recurring-template.entity.js';
 import { Account } from '../accounts/account.entity.js';
 import { Transaction, TransactionType } from '../transactions/transaction.entity.js';
+import { todayBA } from '../common/date.util.js';
 import {
   CreateDebtDto, UpdateDebtDto, PayDebtDto,
   CreateTemplateDto, UpdateTemplateDto, GenerateMonthDto, CreateInstallmentDto,
@@ -128,7 +129,7 @@ export class DebtsService {
       const targetAccount = await accountRepo.findOneBy({ id: dto.account_id });
       if (!targetAccount) throw new BadRequestException('Cuenta no encontrada');
 
-      const paidDate = dto.paidDate || new Date().toISOString().slice(0, 10);
+      const paidDate = dto.paidDate || todayBA();
       // Permitir override de amount al pagar
       const amount = dto.amount !== undefined ? Number(dto.amount) : Number(debt.amount);
 

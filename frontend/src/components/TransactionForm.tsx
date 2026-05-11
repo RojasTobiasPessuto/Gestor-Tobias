@@ -4,6 +4,7 @@ import type { Account, CategoryItem } from '../api';
 import { Plus, Trash2, ChevronDown, ChevronUp, X } from 'lucide-react';
 import TransactionReceipt from './TransactionReceipt';
 import type { ReceiptData } from './TransactionReceipt';
+import { todayBA } from '../utils/date';
 
 interface SubmitData {
   amount: number;
@@ -26,7 +27,7 @@ export default function TransactionForm({ onSubmit, submitLabel, type }: Props) 
   const [amount, setAmount] = useState('');
   const [selectedCats, setSelectedCats] = useState<string[]>([]);
   const [comment, setComment] = useState('');
-  const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
+  const [date, setDate] = useState(todayBA());
   const [submitting, setSubmitting] = useState(false);
   const [showCatManager, setShowCatManager] = useState(false);
   const [newCatName, setNewCatName] = useState('');

@@ -4,6 +4,7 @@ import { Repository, DataSource } from 'typeorm';
 import { Account } from './account.entity.js';
 import { CreateAccountDto, UpdateAccountDto } from './account.dto.js';
 import { Transaction, TransactionType } from '../transactions/transaction.entity.js';
+import { todayBA } from '../common/date.util.js';
 
 @Injectable()
 export class AccountsService {
@@ -65,7 +66,7 @@ export class AccountsService {
         categories: ['AJUSTE'],
         comment: comment || `Ajuste manual: ${oldBalance.toFixed(2)} -> ${newBalance.toFixed(2)}`,
         exchangeRate: null,
-        date: new Date().toISOString().slice(0, 10),
+        date: todayBA(),
       });
       await txRepo.save(tx);
 

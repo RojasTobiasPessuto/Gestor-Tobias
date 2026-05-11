@@ -4,6 +4,7 @@ import type { Account } from '../api';
 import toast from 'react-hot-toast';
 import TransactionReceipt from './TransactionReceipt';
 import type { ReceiptData } from './TransactionReceipt';
+import { todayBA } from '../utils/date';
 
 export default function TransferForm() {
   const [accounts, setAccounts] = useState<Account[]>([]);
@@ -11,7 +12,7 @@ export default function TransferForm() {
   const [toId, setToId] = useState('');
   const [amount, setAmount] = useState('');
   const [comment, setComment] = useState('');
-  const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
+  const [date, setDate] = useState(todayBA());
   const [submitting, setSubmitting] = useState(false);
   const [receipt, setReceipt] = useState<ReceiptData | null>(null);
 

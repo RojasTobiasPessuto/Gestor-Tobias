@@ -13,6 +13,7 @@ import DolaresForm from '../components/DolaresForm';
 import HistorialView from '../components/HistorialView';
 import DeudasView from '../components/DeudasView';
 import CategoryTransactionsView from '../components/CategoryTransactionsView';
+import { firstDayOfMonthBA, lastDayOfMonthBA } from '../utils/date';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { Filter, X } from 'lucide-react';
@@ -47,9 +48,8 @@ export default function Dashboard() {
   // Metrics state
   const [metrics, setMetrics] = useState<AnalyticsSummary | null>(null);
   const [filterOpts, setFilterOpts] = useState<FilterOptions | null>(null);
-  const now = new Date();
-  const mesDesde = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
-  const mesHasta = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().slice(0, 10);
+  const mesDesde = firstDayOfMonthBA();
+  const mesHasta = lastDayOfMonthBA();
   const [filters, setFilters] = useState<AnalyticsFilters>({ desde: mesDesde, hasta: mesHasta });
   const [metricsLoading, setMetricsLoading] = useState(false);
 
