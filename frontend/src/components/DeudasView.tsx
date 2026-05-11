@@ -294,6 +294,13 @@ export default function DeudasView({ onChange }: Props) {
   const totalPendienteUsd = pendientes.filter((d) => d.currency === 'USD').reduce((s, d) => s + Number(d.amount), 0);
   const totalPendienteArs = pendientes.filter((d) => d.currency === 'ARS').reduce((s, d) => s + Number(d.amount), 0);
 
+  // Pendiente del mes actual (filtrado por fecha)
+  const mesActual = currentMonth(); // YYYY-MM
+  const pendientesDelMes = pendientes.filter((d) => d.date.slice(0, 7) === mesActual);
+  const pendienteMesUsd = pendientesDelMes.filter((d) => d.currency === 'USD').reduce((s, d) => s + Number(d.amount), 0);
+  const pendienteMesArs = pendientesDelMes.filter((d) => d.currency === 'ARS').reduce((s, d) => s + Number(d.amount), 0);
+  const mesLabel = new Date().toLocaleDateString('es-AR', { month: 'long', year: 'numeric' });
+
   return (
     <div className="deudas-view">
       <div className="tabs" style={{ marginBottom: '1rem' }}>
@@ -310,7 +317,33 @@ export default function DeudasView({ onChange }: Props) {
 
       {tab !== 'PLANTILLAS' && (
         <>
-          {/* Totales pendientes */}
+          {/* Totales pendientes - DEL MES (solo YO_DEBO) */}
+          {tab === 'YO_DEBO' && (
+            <>
+              <h4 className="cat-section-title" style={{ borderColor: 'var(--red)', color: 'var(--red)', textTransform: 'capitalize' }}>
+                A pagar en {mesLabel}
+              </h4>
+              <div className="metrics-grid-3" style={{ marginBottom: '1rem' }}>
+                <div className="metric-card red">
+                  <span className="metric-label">Este mes USD</span>
+                  <span className="metric-value">US${fmt(pendienteMesUsd)}</span>
+                </div>
+                <div className="metric-card red">
+                  <span className="metric-label">Este mes ARS</span>
+                  <span className="metric-value">${fmt(pendienteMesArs)}</span>
+                </div>
+                <div className="metric-card">
+                  <span className="metric-label">Items este mes</span>
+                  <span className="metric-value">{pendientesDelMes.length}</span>
+                </div>
+              </div>
+            </>
+          )}
+
+          {/* Totales pendientes - GENERAL */}
+          <h4 className="cat-section-title" style={{ borderColor: 'var(--yellow)', color: 'var(--yellow)' }}>
+            Total pendiente
+          </h4>
           <div className="metrics-grid-3" style={{ marginBottom: '1rem' }}>
             <div className="metric-card yellow">
               <span className="metric-label">Pendiente USD</span>
