@@ -25,6 +25,10 @@ export class CreateDebtDto {
   @IsString({ each: true })
   @IsOptional()
   categories?: string[];
+
+  @IsNumber()
+  @IsOptional()
+  source_account_id?: number;
 }
 
 export class UpdateDebtDto {
@@ -52,6 +56,10 @@ export class UpdateDebtDto {
   @IsString({ each: true })
   @IsOptional()
   categories?: string[];
+
+  @IsNumber()
+  @IsOptional()
+  source_account_id?: number | null;
 }
 
 export class PayDebtDto {

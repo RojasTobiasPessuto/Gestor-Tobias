@@ -32,6 +32,7 @@ export default function DeudasView({ onChange }: Props) {
   const [formCurrency, setFormCurrency] = useState<'ARS' | 'USD'>('USD');
   const [formDescription, setFormDescription] = useState('');
   const [formDate, setFormDate] = useState(currentDate());
+  const [formSourceAccountId, setFormSourceAccountId] = useState<string>('');
 
   // Pay modal
   const [payId, setPayId] = useState<number | null>(null);
@@ -88,6 +89,7 @@ export default function DeudasView({ onChange }: Props) {
     setFormCurrency('USD');
     setFormDescription('');
     setFormDate(currentDate());
+    setFormSourceAccountId('');
     setShowForm(false);
     setEditId(null);
   };
@@ -99,6 +101,7 @@ export default function DeudasView({ onChange }: Props) {
     setFormCurrency(d.currency);
     setFormDescription(d.description || '');
     setFormDate(d.date);
+    setFormSourceAccountId(d.sourceAccountId ? String(d.sourceAccountId) : '');
     setShowForm(true);
   };
 
@@ -112,6 +115,7 @@ export default function DeudasView({ onChange }: Props) {
       currency: formCurrency,
       description: formDescription || undefined,
       date: formDate,
+      source_account_id: tab === 'ME_DEBEN' && formSourceAccountId ? parseInt(formSourceAccountId) : undefined,
     };
     try {
       if (editId) {
@@ -412,6 +416,17 @@ export default function DeudasView({ onChange }: Props) {
                 Fecha
                 <input type="date" value={formDate} onChange={(e) => setFormDate(e.target.value)} required />
               </label>
+              {tab === 'ME_DEBEN' && (
+                <label>
+                  Cuenta origen <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>(opcional - solo si la plata salio de una de tus cuentas)</span>
+                  <select value={formSourceAccountId} onChange={(e) => setFormSourceAccountId(e.target.value)}>
+                    <option value="">Sin cuenta (no descontar)</option>
+                    {accounts.filter((a) => a.name !== 'ME DEBEN' && a.currency === formCurrency).map((a) => (
+                      <option key={a.id} value={a.id}>{a.name}</option>
+                    ))}
+                  </select>
+                </label>
+              )}
               <div style={{ display: 'flex', gap: '0.5rem' }}>
                 <button type="submit">{editId ? 'Guardar' : 'Registrar'}</button>
                 <button type="button" onClick={resetForm} style={{ background: 'var(--bg-input)' }}>Cancelar</button>

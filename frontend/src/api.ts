@@ -134,6 +134,7 @@ export interface Debt {
   installmentTotal: number | null;
   installmentDescription: string | null;
   categories: string[];
+  sourceAccountId: number | null;
 }
 
 export interface RecurringTemplate {
@@ -179,6 +180,8 @@ export interface CreateDebtPayload {
   currency: 'ARS' | 'USD';
   description?: string;
   date: string;
+  source_account_id?: number;
+  categories?: string[];
 }
 
 export const getDebts = (type?: string, status?: string) => {

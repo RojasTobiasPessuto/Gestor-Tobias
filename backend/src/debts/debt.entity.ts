@@ -60,6 +60,10 @@ export class Debt {
   @Column({ type: 'text', array: true, default: () => "'{}'", nullable: false })
   categories!: string[];
 
+  // Solo para ME_DEBEN: cuenta de la que salio la plata al prestar (null = solo registro, no descuenta)
+  @Column({ type: 'int', nullable: true })
+  sourceAccountId!: number | null;
+
   @CreateDateColumn()
   createdAt!: Date;
 }

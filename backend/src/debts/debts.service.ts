@@ -50,6 +50,7 @@ export class DebtsService {
         installmentTotal: null,
         installmentDescription: null,
         categories: dto.categories ?? [],
+        sourceAccountId: dto.type === DebtType.ME_DEBEN ? (dto.source_account_id ?? null) : null,
       });
 
       if (dto.type === DebtType.ME_DEBEN) {
@@ -57,6 +58,14 @@ export class DebtsService {
         if (!meDeben) throw new BadRequestException('Cuenta ME DEBEN no encontrada');
         meDeben.balance = Number(meDeben.balance) + dto.amount;
         await accountRepo.save(meDeben);
+
+        // Si vino source_account_id, descontar la plata de esa cuenta (prestamo recien hecho)
+        if (dto.source_account_id) {
+          const source = await accountRepo.findOneBy({ id: dto.source_account_id });
+          if (!source) throw new BadRequestException('Cuenta origen no encontrada');
+          source.balance = Number(source.balance) - dto.amount;
+          await accountRepo.save(source);
+        }
       }
 
       return debtRepo.save(debt);
@@ -80,6 +89,37 @@ export class DebtsService {
         const delta = dto.amount - Number(debt.amount);
         meDeben.balance = Number(meDeben.balance) + delta;
         await accountRepo.save(meDeben);
+
+        // Si la deuda tenia source_account_id, ajustar el saldo de esa cuenta tambien (con signo opuesto)
+        if (debt.sourceAccountId) {
+          const source = await accountRepo.findOneBy({ id: debt.sourceAccountId });
+          if (source) {
+            source.balance = Number(source.balance) - delta;
+            await accountRepo.save(source);
+          }
+        }
+      }
+
+      // Manejar cambio de source_account_id
+      if (debt.type === DebtType.ME_DEBEN && dto.source_account_id !== undefined && dto.source_account_id !== debt.sourceAccountId) {
+        const amount = dto.amount !== undefined ? dto.amount : Number(debt.amount);
+
+        // Restituir a la cuenta anterior (si tenia)
+        if (debt.sourceAccountId) {
+          const oldSource = await accountRepo.findOneBy({ id: debt.sourceAccountId });
+          if (oldSource) {
+            oldSource.balance = Number(oldSource.balance) + amount;
+            await accountRepo.save(oldSource);
+          }
+        }
+        // Descontar de la nueva cuenta (si vino)
+        if (dto.source_account_id) {
+          const newSource = await accountRepo.findOneBy({ id: dto.source_account_id });
+          if (!newSource) throw new BadRequestException('Cuenta origen no encontrada');
+          newSource.balance = Number(newSource.balance) - amount;
+          await accountRepo.save(newSource);
+        }
+        debt.sourceAccountId = dto.source_account_id ?? null;
       }
 
       if (dto.person !== undefined) debt.person = dto.person;
@@ -106,6 +146,15 @@ export class DebtsService {
         if (meDeben) {
           meDeben.balance = Number(meDeben.balance) - Number(debt.amount);
           await accountRepo.save(meDeben);
+        }
+
+        // Si la deuda tenia source_account_id, restituir el monto a esa cuenta
+        if (debt.sourceAccountId) {
+          const source = await accountRepo.findOneBy({ id: debt.sourceAccountId });
+          if (source) {
+            source.balance = Number(source.balance) + Number(debt.amount);
+            await accountRepo.save(source);
+          }
         }
       }
 
