@@ -410,7 +410,7 @@ export default function DeudasView({ onChange }: Props) {
               </label>
               <label>
                 Descripcion
-                <input type="text" value={formDescription} onChange={(e) => setFormDescription(e.target.value)} />
+                <textarea rows={3} value={formDescription} onChange={(e) => setFormDescription(e.target.value)} />
               </label>
               <label>
                 Fecha
@@ -570,7 +570,7 @@ export default function DeudasView({ onChange }: Props) {
               </label>
               <label>
                 Descripcion
-                <input type="text" value={tplDescription} onChange={(e) => setTplDescription(e.target.value)} />
+                <textarea rows={3} value={tplDescription} onChange={(e) => setTplDescription(e.target.value)} />
               </label>
               <CategoryMultiSelect selected={tplCategories} onChange={setTplCategories} type="GASTO" />
               <div style={{ display: 'flex', gap: '0.5rem' }}>
@@ -724,7 +724,7 @@ export default function DeudasView({ onChange }: Props) {
             <form onSubmit={confirmInstallment} style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
               <label>
                 Descripcion (ej: Celular Samsung)
-                <input type="text" value={instDescription} onChange={(e) => setInstDescription(e.target.value)} required />
+                <textarea rows={3} value={instDescription} onChange={(e) => setInstDescription(e.target.value)} required />
               </label>
               <label>
                 A quien le pago / origen

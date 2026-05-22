@@ -169,7 +169,7 @@ export default function TransactionForm({ onSubmit, submitLabel, type }: Props) 
 
         <label>
           Comentario
-          <input type="text" value={comment} onChange={(e) => setComment(e.target.value)} />
+          <textarea rows={3} value={comment} onChange={(e) => setComment(e.target.value)} />
         </label>
         <label>
           Fecha

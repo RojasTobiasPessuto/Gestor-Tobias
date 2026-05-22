@@ -320,7 +320,8 @@ body {
 }
 
 .form-card input,
-.form-card select {
+.form-card select,
+.form-card textarea {
   background: var(--bg-input);
   border: 1px solid var(--border);
   border-radius: 8px;
@@ -329,11 +330,31 @@ body {
   font-size: 0.9rem;
   outline: none;
   transition: border-color 0.15s;
+  font-family: inherit;
+  resize: vertical;
 }
 
 .form-card input:focus,
-.form-card select:focus {
+.form-card select:focus,
+.form-card textarea:focus {
   border-color: var(--accent);
+}
+
+.edit-input {
+  background: var(--bg-input);
+  border: 1px solid var(--accent);
+  border-radius: 6px;
+  padding: 0.35rem 0.5rem;
+  color: var(--text);
+  font-size: 0.85rem;
+  width: 100%;
+  outline: none;
+  font-family: inherit;
+  resize: vertical;
+}
+
+textarea.edit-input {
+  min-height: 32px;
 }
 
 .form-card button[type="submit"],
@@ -563,9 +584,15 @@ body {
 .receipt-row {
   display: flex;
   justify-content: space-between;
+  align-items: flex-start;
   padding: 0.55rem 1rem;
   border-bottom: 1px solid var(--border);
   font-size: 0.88rem;
+}
+
+.receipt-row strong {
+  white-space: pre-wrap;
+  text-align: right;
 }
 
 .receipt-row:last-child { border-bottom: none; }
@@ -1086,6 +1113,8 @@ tbody td {
   padding: 0.55rem 0.6rem;
   border-bottom: 1px solid var(--border);
   vertical-align: top;
+  white-space: pre-wrap;
+  word-break: break-word;
 }
 
 tbody tr:hover { background: rgba(99, 102, 241, 0.04); }

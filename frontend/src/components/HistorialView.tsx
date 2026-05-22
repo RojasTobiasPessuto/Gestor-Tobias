@@ -204,7 +204,7 @@ export default function HistorialView() {
                             </div>
                           ) : '-'}
                         </td>
-                        <td><input className="edit-input" type="text" value={edit.comment} onChange={(e) => setEdit({ ...edit, comment: e.target.value })} /></td>
+                        <td><textarea className="edit-input" rows={2} value={edit.comment} onChange={(e) => setEdit({ ...edit, comment: e.target.value })} /></td>
                         <td>
                           <div className="action-buttons">
                             <button className="btn-icon save" onClick={() => saveEdit(tx)} disabled={saving}><Check size={14} /></button>
