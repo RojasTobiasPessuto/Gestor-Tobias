@@ -37,6 +37,13 @@ export class AccountsService {
 
   async remove(id: number): Promise<void> {
     const account = await this.findOne(id);
+    const txRepo = this.dataSource.getRepository(Transaction);
+    const movimientos = await txRepo.count({
+      where: [{ account_id: id }, { account_to_id: id }],
+    });
+    if (movimientos > 0) {
+      throw new BadRequestException('No se puede eliminar una cuenta con movimientos asociados');
+    }
     await this.repo.remove(account);
   }
 

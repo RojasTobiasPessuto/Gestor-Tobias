@@ -298,6 +298,7 @@ export default function DeudasView({ onChange }: Props) {
     }
   };
 
+  const payingDebt = payId !== null ? debts.find((d) => d.id === payId) ?? null : null;
   const pendientes = debts.filter((d) => d.status === 'PENDIENTE');
   const pagadas = debts.filter((d) => d.status === 'PAGADO');
   const totalPendienteUsd = pendientes.filter((d) => d.currency === 'USD').reduce((s, d) => s + Number(d.amount), 0);
@@ -403,7 +404,7 @@ export default function DeudasView({ onChange }: Props) {
               </label>
               <label>
                 Moneda
-                <select value={formCurrency} onChange={(e) => setFormCurrency(e.target.value as 'ARS' | 'USD')}>
+                <select value={formCurrency} onChange={(e) => { setFormCurrency(e.target.value as 'ARS' | 'USD'); setFormSourceAccountId(''); }}>
                   <option value="USD">USD</option>
                   <option value="ARS">ARS</option>
                 </select>
@@ -421,7 +422,7 @@ export default function DeudasView({ onChange }: Props) {
                   Cuenta origen <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>(opcional - solo si la plata salio de una de tus cuentas)</span>
                   <select value={formSourceAccountId} onChange={(e) => setFormSourceAccountId(e.target.value)}>
                     <option value="">Sin cuenta (no descontar)</option>
-                    {accounts.filter((a) => a.name !== 'ME DEBEN' && a.currency === formCurrency).map((a) => (
+                    {accounts.filter((a) => !a.name.startsWith('ME DEBEN') && a.currency === formCurrency).map((a) => (
                       <option key={a.id} value={a.id}>{a.name}</option>
                     ))}
                   </select>
@@ -650,9 +651,11 @@ export default function DeudasView({ onChange }: Props) {
               {tab === 'ME_DEBEN' ? 'Cuenta donde recibis' : 'Cuenta de donde sale'}
               <select value={payAccountId} onChange={(e) => setPayAccountId(e.target.value)}>
                 <option value="">Seleccionar...</option>
-                {accounts.filter((a) => a.name !== 'ME DEBEN').map((a) => (
-                  <option key={a.id} value={a.id}>{a.name}</option>
-                ))}
+                {accounts
+                  .filter((a) => !a.name.startsWith('ME DEBEN') && (!payingDebt || a.currency === payingDebt.currency))
+                  .map((a) => (
+                    <option key={a.id} value={a.id}>{a.name}</option>
+                  ))}
               </select>
             </label>
             <label>

@@ -4,7 +4,7 @@ import { Repository, DataSource } from 'typeorm';
 import { randomUUID } from 'crypto';
 import { Debt, DebtType, DebtStatus } from './debt.entity.js';
 import { RecurringTemplate } from './recurring-template.entity.js';
-import { Account } from '../accounts/account.entity.js';
+import { Account, Currency } from '../accounts/account.entity.js';
 import { Transaction, TransactionType } from '../transactions/transaction.entity.js';
 import { todayBA } from '../common/date.util.js';
 import {
@@ -12,7 +12,8 @@ import {
   CreateTemplateDto, UpdateTemplateDto, GenerateMonthDto, CreateInstallmentDto,
 } from './debt.dto.js';
 
-const ME_DEBEN_ACCOUNT_NAME = 'ME DEBEN';
+const ME_DEBEN_USD = 'ME DEBEN';
+const ME_DEBEN_ARS = 'ME DEBEN ARS';
 
 @Injectable()
 export class DebtsService {
@@ -21,6 +22,50 @@ export class DebtsService {
     @InjectRepository(RecurringTemplate) private readonly templateRepo: Repository<RecurringTemplate>,
     private readonly dataSource: DataSource,
   ) {}
+
+  // Devuelve la cuenta acumuladora ME DEBEN de la moneda indicada, creandola si no existe.
+  private async getOrCreateMeDeben(
+    accountRepo: Repository<Account>,
+    currency: 'ARS' | 'USD',
+  ): Promise<Account> {
+    const name = currency === 'USD' ? ME_DEBEN_USD : ME_DEBEN_ARS;
+    let account = await accountRepo.findOneBy({ name });
+    if (!account) {
+      account = accountRepo.create({
+        name,
+        balance: 0,
+        currency: currency === 'USD' ? Currency.USD : Currency.ARS,
+      });
+      account = await accountRepo.save(account);
+    }
+    return account;
+  }
+
+  // Aplica (sign=1) o revierte (sign=-1) el efecto de una deuda ME_DEBEN sobre los saldos:
+  // suma al acumulador ME DEBEN de la moneda y, si hay cuenta origen, descuenta de ella.
+  private async applyMeDebenEffect(
+    accountRepo: Repository<Account>,
+    currency: 'ARS' | 'USD',
+    amount: number,
+    sourceAccountId: number | null,
+    sign: 1 | -1,
+  ) {
+    const meDeben = await this.getOrCreateMeDeben(accountRepo, currency);
+    meDeben.balance = Number(meDeben.balance) + sign * amount;
+    await accountRepo.save(meDeben);
+
+    if (sourceAccountId) {
+      const source = await accountRepo.findOneBy({ id: sourceAccountId });
+      if (!source) throw new BadRequestException('Cuenta origen no encontrada');
+      if (sign === 1 && source.currency !== currency) {
+        throw new BadRequestException(
+          `La cuenta origen debe ser en ${currency} (misma moneda que la deuda)`,
+        );
+      }
+      source.balance = Number(source.balance) - sign * amount;
+      await accountRepo.save(source);
+    }
+  }
 
   findAll(type?: DebtType, status?: DebtStatus): Promise<Debt[]> {
     const where: { type?: DebtType; status?: DebtStatus } = {};
@@ -54,18 +99,15 @@ export class DebtsService {
       });
 
       if (dto.type === DebtType.ME_DEBEN) {
-        const meDeben = await accountRepo.findOneBy({ name: ME_DEBEN_ACCOUNT_NAME });
-        if (!meDeben) throw new BadRequestException('Cuenta ME DEBEN no encontrada');
-        meDeben.balance = Number(meDeben.balance) + dto.amount;
-        await accountRepo.save(meDeben);
-
-        // Si vino source_account_id, descontar la plata de esa cuenta (prestamo recien hecho)
-        if (dto.source_account_id) {
-          const source = await accountRepo.findOneBy({ id: dto.source_account_id });
-          if (!source) throw new BadRequestException('Cuenta origen no encontrada');
-          source.balance = Number(source.balance) - dto.amount;
-          await accountRepo.save(source);
-        }
+        // Impacta el acumulador ME DEBEN de la moneda de la deuda (y descuenta de la
+        // cuenta origen si se presto plata real). Valida que la moneda coincida.
+        await this.applyMeDebenEffect(
+          accountRepo,
+          dto.currency,
+          dto.amount,
+          dto.source_account_id ?? null,
+          1,
+        );
       }
 
       return debtRepo.save(debt);
@@ -83,43 +125,18 @@ export class DebtsService {
         throw new BadRequestException('No se puede editar una deuda pagada');
       }
 
-      if (debt.type === DebtType.ME_DEBEN && dto.amount !== undefined && dto.amount !== Number(debt.amount)) {
-        const meDeben = await accountRepo.findOneBy({ name: ME_DEBEN_ACCOUNT_NAME });
-        if (!meDeben) throw new BadRequestException('Cuenta ME DEBEN no encontrada');
-        const delta = dto.amount - Number(debt.amount);
-        meDeben.balance = Number(meDeben.balance) + delta;
-        await accountRepo.save(meDeben);
+      // Para ME_DEBEN, revertir el efecto anterior sobre los saldos y aplicar el nuevo.
+      // Asi se manejan de forma unificada los cambios de monto, moneda y cuenta origen.
+      if (debt.type === DebtType.ME_DEBEN) {
+        const newCurrency = dto.currency ?? debt.currency;
+        const newAmount = dto.amount !== undefined ? dto.amount : Number(debt.amount);
+        const newSource =
+          dto.source_account_id !== undefined ? dto.source_account_id : debt.sourceAccountId;
 
-        // Si la deuda tenia source_account_id, ajustar el saldo de esa cuenta tambien (con signo opuesto)
-        if (debt.sourceAccountId) {
-          const source = await accountRepo.findOneBy({ id: debt.sourceAccountId });
-          if (source) {
-            source.balance = Number(source.balance) - delta;
-            await accountRepo.save(source);
-          }
-        }
-      }
+        await this.applyMeDebenEffect(accountRepo, debt.currency, Number(debt.amount), debt.sourceAccountId, -1);
+        await this.applyMeDebenEffect(accountRepo, newCurrency, newAmount, newSource ?? null, 1);
 
-      // Manejar cambio de source_account_id
-      if (debt.type === DebtType.ME_DEBEN && dto.source_account_id !== undefined && dto.source_account_id !== debt.sourceAccountId) {
-        const amount = dto.amount !== undefined ? dto.amount : Number(debt.amount);
-
-        // Restituir a la cuenta anterior (si tenia)
-        if (debt.sourceAccountId) {
-          const oldSource = await accountRepo.findOneBy({ id: debt.sourceAccountId });
-          if (oldSource) {
-            oldSource.balance = Number(oldSource.balance) + amount;
-            await accountRepo.save(oldSource);
-          }
-        }
-        // Descontar de la nueva cuenta (si vino)
-        if (dto.source_account_id) {
-          const newSource = await accountRepo.findOneBy({ id: dto.source_account_id });
-          if (!newSource) throw new BadRequestException('Cuenta origen no encontrada');
-          newSource.balance = Number(newSource.balance) - amount;
-          await accountRepo.save(newSource);
-        }
-        debt.sourceAccountId = dto.source_account_id ?? null;
+        debt.sourceAccountId = newSource ?? null;
       }
 
       if (dto.person !== undefined) debt.person = dto.person;
@@ -142,20 +159,13 @@ export class DebtsService {
       if (!debt) throw new NotFoundException(`Deuda #${id} no encontrada`);
 
       if (debt.status === DebtStatus.PENDIENTE && debt.type === DebtType.ME_DEBEN) {
-        const meDeben = await accountRepo.findOneBy({ name: ME_DEBEN_ACCOUNT_NAME });
-        if (meDeben) {
-          meDeben.balance = Number(meDeben.balance) - Number(debt.amount);
-          await accountRepo.save(meDeben);
-        }
-
-        // Si la deuda tenia source_account_id, restituir el monto a esa cuenta
-        if (debt.sourceAccountId) {
-          const source = await accountRepo.findOneBy({ id: debt.sourceAccountId });
-          if (source) {
-            source.balance = Number(source.balance) + Number(debt.amount);
-            await accountRepo.save(source);
-          }
-        }
+        await this.applyMeDebenEffect(
+          accountRepo,
+          debt.currency,
+          Number(debt.amount),
+          debt.sourceAccountId,
+          -1,
+        );
       }
 
       await debtRepo.remove(debt);
@@ -179,28 +189,26 @@ export class DebtsService {
       if (!targetAccount) throw new BadRequestException('Cuenta no encontrada');
 
       const paidDate = dto.paidDate || todayBA();
+      // Monto originalmente registrado (lo que se acumulo como "por cobrar" al crear la deuda)
+      const originalAmount = Number(debt.amount);
       // Permitir override de amount al pagar
-      const amount = dto.amount !== undefined ? Number(dto.amount) : Number(debt.amount);
+      const amount = dto.amount !== undefined ? Number(dto.amount) : originalAmount;
 
-      // Si el monto pagado difiere del registrado, actualizar la deuda y ajustar ME DEBEN si aplica
-      if (amount !== Number(debt.amount)) {
-        if (debt.type === DebtType.ME_DEBEN) {
-          const meDeben = await accountRepo.findOneBy({ name: ME_DEBEN_ACCOUNT_NAME });
-          if (meDeben) {
-            const delta = amount - Number(debt.amount);
-            meDeben.balance = Number(meDeben.balance) + delta;
-            await accountRepo.save(meDeben);
-          }
-        }
-        debt.amount = amount;
+      // La cuenta debe ser de la misma moneda que la deuda: no convertimos automaticamente.
+      if (targetAccount.currency !== debt.currency) {
+        throw new BadRequestException(
+          `La cuenta debe ser en ${debt.currency} (misma moneda que la deuda)`,
+        );
       }
 
       if (debt.type === DebtType.ME_DEBEN) {
-        const meDeben = await accountRepo.findOneBy({ name: ME_DEBEN_ACCOUNT_NAME });
-        if (!meDeben) throw new BadRequestException('Cuenta ME DEBEN no encontrada');
-        meDeben.balance = Number(meDeben.balance) - amount;
-        targetAccount.balance = Number(targetAccount.balance) + amount;
+        // Sacar del acumulador lo que se habia registrado como por cobrar...
+        const meDeben = await this.getOrCreateMeDeben(accountRepo, debt.currency);
+        meDeben.balance = Number(meDeben.balance) - originalAmount;
         await accountRepo.save(meDeben);
+
+        // ...y acreditar el monto realmente cobrado en la cuenta destino.
+        targetAccount.balance = Number(targetAccount.balance) + amount;
         await accountRepo.save(targetAccount);
 
         const tx = txRepo.create({
@@ -231,6 +239,7 @@ export class DebtsService {
         await txRepo.save(tx);
       }
 
+      debt.amount = amount;
       debt.status = DebtStatus.PAGADO;
       debt.paidDate = paidDate;
       debt.paidAccountId = targetAccount.id;

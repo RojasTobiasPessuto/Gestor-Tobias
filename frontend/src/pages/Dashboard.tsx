@@ -1,9 +1,9 @@
 import { useEffect, useState, useCallback } from 'react';
-import { getAccounts, getDollarRate, createTransaction, getAnalytics, getFilterOptions, adjustAccountBalance } from '../api';
+import { getAccounts, getDollarRate, createTransaction, getAnalytics, getFilterOptions, adjustAccountBalance, deleteAccount } from '../api';
 import type { Account, DollarRate, AnalyticsSummary, AnalyticsFilters, FilterOptions } from '../api';
 import {
   Wallet, DollarSign, TrendingUp, TrendingDown,
-  ArrowLeftRight, History, BarChart3, HandCoins,
+  ArrowLeftRight, History, BarChart3, HandCoins, Trash2,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import Modal from '../components/Modal';
@@ -107,17 +107,18 @@ export default function Dashboard() {
 
   const arsAccounts = accounts.filter((a) => a.currency === 'ARS');
   const usdAccounts = accounts.filter((a) => a.currency === 'USD');
-  const meDebenAccount = accounts.find((a) => a.name === 'ME DEBEN');
-  const meDebenBalance = meDebenAccount ? Number(meDebenAccount.balance) : 0;
+  const meDebenUsd = Number(accounts.find((a) => a.name === 'ME DEBEN')?.balance ?? 0);
+  const meDebenArs = Number(accounts.find((a) => a.name === 'ME DEBEN ARS')?.balance ?? 0);
 
   const totalArs = arsAccounts.reduce((s, a) => s + Number(a.balance), 0);
   const totalUsd = usdAccounts.reduce((s, a) => s + Number(a.balance), 0);
-  const totalUsdSinDeuda = totalUsd - meDebenBalance;
+  const totalArsSinDeuda = totalArs - meDebenArs;
+  const totalUsdSinDeuda = totalUsd - meDebenUsd;
   const promedio = rate?.promedio || 0;
   const totalEnPesos = totalArs + totalUsd * promedio;
-  const totalEnPesosSinDeuda = totalArs + totalUsdSinDeuda * promedio;
+  const totalEnPesosSinDeuda = totalArsSinDeuda + totalUsdSinDeuda * promedio;
   const totalEnDolares = totalUsd + (promedio ? totalArs / promedio : 0);
-  const totalEnDolaresSinDeuda = totalUsdSinDeuda + (promedio ? totalArs / promedio : 0);
+  const totalEnDolaresSinDeuda = totalUsdSinDeuda + (promedio ? totalArsSinDeuda / promedio : 0);
   const hasFilters = Object.values(filters).some((v) => v);
 
   // Convertir todo a ARS usando el promedio del dolar blue
@@ -170,7 +171,7 @@ export default function Dashboard() {
   // Cuentas en ARS
   const cuentaChartData = metrics
     ? metrics.movimientosPorCuenta.map((c) => {
-        const isUsd = c.account.includes('USD') || c.account === 'ME DEBEN' || c.account === 'AHORROS';
+        const isUsd = c.account.includes('USD') || c.account === 'ME DEBEN';
         return {
           name: c.account,
           Ingresos: isUsd ? c.ingresos * promedio : c.ingresos,
@@ -222,6 +223,7 @@ export default function Dashboard() {
           <div>
             <span className="dt-label">Total Pesos</span>
             <span className="dt-value">${fmt(totalArs)}</span>
+            {meDebenArs !== 0 && <span className="dt-sub">Sin deuda: ${fmt(totalArsSinDeuda)}</span>}
           </div>
         </div>
         <div className="dash-total">
@@ -609,6 +611,29 @@ export default function Dashboard() {
             <button type="submit" disabled={savingAdjust}>
               {savingAdjust ? 'Procesando...' : 'Confirmar ajuste'}
             </button>
+            {!adjustingAccount.name.startsWith('ME DEBEN') && (
+              <button
+                type="button"
+                disabled={savingAdjust}
+                onClick={async () => {
+                  if (!confirm(`¿Eliminar la cuenta "${adjustingAccount.name}"? Esta acción no se puede deshacer.`)) return;
+                  try {
+                    await deleteAccount(adjustingAccount.id);
+                    toast.success('Cuenta eliminada');
+                    setAdjustingAccount(null);
+                    loadAccounts();
+                    loadMetrics(filters);
+                  } catch (err: unknown) {
+                    const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
+                    toast.error(typeof msg === 'string' ? msg : 'No se pudo eliminar la cuenta');
+                  }
+                }}
+                style={{ background: 'transparent', color: 'var(--red)', border: '1px solid var(--red)', marginTop: '0.5rem' }}
+              >
+                <Trash2 size={14} style={{ verticalAlign: 'middle', marginRight: 6 }} />
+                Eliminar cuenta
+              </button>
+            )}
           </form>
         )}
       </Modal>

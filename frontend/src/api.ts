@@ -70,6 +70,7 @@ export const updateAccount = (id: number, data: Partial<Account>) =>
   api.patch<Account>(`/accounts/${id}`, data).then((r) => r.data);
 export const adjustAccountBalance = (id: number, balance: number, comment?: string) =>
   api.patch<Account>(`/accounts/${id}/adjust`, { balance, comment }).then((r) => r.data);
+export const deleteAccount = (id: number) => api.delete(`/accounts/${id}`);
 
 export interface DollarRate {
   compra: number;

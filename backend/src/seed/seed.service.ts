@@ -22,6 +22,7 @@ export class SeedService implements OnModuleInit {
         { name: 'USD VIRTUAL', balance: 0, currency: Currency.USD },
         { name: 'USD FISICO', balance: 0, currency: Currency.USD },
         { name: 'ME DEBEN', balance: 0, currency: Currency.USD },
+        { name: 'ME DEBEN ARS', balance: 0, currency: Currency.ARS },
       ];
       await this.accountRepo.save(defaults.map((d) => this.accountRepo.create(d)));
       console.log('Cuentas iniciales creadas');
