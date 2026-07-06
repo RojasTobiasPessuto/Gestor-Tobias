@@ -28,6 +28,15 @@ export class SeedService implements OnModuleInit {
       console.log('Cuentas iniciales creadas');
     }
 
+    // Asegurar el acumulador ME DEBEN ARS tambien en bases ya existentes
+    const meDebenArs = await this.accountRepo.findOneBy({ name: 'ME DEBEN ARS' });
+    if (!meDebenArs) {
+      await this.accountRepo.save(
+        this.accountRepo.create({ name: 'ME DEBEN ARS', balance: 0, currency: Currency.ARS }),
+      );
+      console.log('Cuenta ME DEBEN ARS creada');
+    }
+
     const catCount = await this.categoryRepo.count();
     if (catCount === 0) {
       const I = CategoryType.INGRESO;

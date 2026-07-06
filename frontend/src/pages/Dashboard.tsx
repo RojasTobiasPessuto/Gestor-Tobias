@@ -107,6 +107,10 @@ export default function Dashboard() {
 
   const arsAccounts = accounts.filter((a) => a.currency === 'ARS');
   const usdAccounts = accounts.filter((a) => a.currency === 'USD');
+  // Orden de las tarjetas: primero las cuentas en pesos, despues las de dolares (por id dentro de cada grupo)
+  const accountsOrdered = [...accounts].sort((a, b) =>
+    a.currency === b.currency ? a.id - b.id : a.currency === 'ARS' ? -1 : 1,
+  );
   const meDebenUsd = Number(accounts.find((a) => a.name === 'ME DEBEN')?.balance ?? 0);
   const meDebenArs = Number(accounts.find((a) => a.name === 'ME DEBEN ARS')?.balance ?? 0);
 
@@ -198,7 +202,7 @@ export default function Dashboard() {
 
       {/* Saldos */}
       <div className="dash-accounts">
-        {accounts.map((a) => (
+        {accountsOrdered.map((a) => (
           <div
             key={a.id}
             className={`dash-account-card ${a.currency.toLowerCase()}`}
