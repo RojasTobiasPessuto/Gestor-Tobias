@@ -1,8 +1,31 @@
 import axios from 'axios';
+import toast from 'react-hot-toast';
+import { supabase } from './supabase';
 
 const api = axios.create({
   baseURL: import.meta.env.VITE_API_URL ?? 'http://localhost:3001/api',
 });
+
+// Adjunta el token de Supabase a cada request
+api.interceptors.request.use(async (config) => {
+  const { data } = await supabase.auth.getSession();
+  const token = data.session?.access_token;
+  if (token) config.headers.Authorization = `Bearer ${token}`;
+  return config;
+});
+
+// Ante 401/403 cierra la sesion y vuelve al login
+api.interceptors.response.use(
+  (res) => res,
+  async (error) => {
+    const status = error?.response?.status;
+    if (status === 401 || status === 403) {
+      toast.error(status === 403 ? 'Cuenta no autorizada' : 'Sesión expirada, volvé a entrar');
+      await supabase.auth.signOut();
+    }
+    return Promise.reject(error);
+  },
+);
 
 // Types
 export interface Account {

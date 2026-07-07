@@ -13,6 +13,7 @@ import { RecurringTemplate } from './debts/recurring-template.entity.js';
 import { Account } from './accounts/account.entity.js';
 import { Transaction } from './transactions/transaction.entity.js';
 import { SeedService } from './seed/seed.service.js';
+import { AuthModule } from './auth/auth.module.js';
 
 @Module({
   imports: [
@@ -32,6 +33,7 @@ import { SeedService } from './seed/seed.service.js';
       },
     }),
     TypeOrmModule.forFeature([Account, Category]),
+    AuthModule,
     AccountsModule,
     TransactionsModule,
     DollarModule,

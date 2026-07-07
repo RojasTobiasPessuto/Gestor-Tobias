@@ -3,9 +3,10 @@ import { getAccounts, getDollarRate, createTransaction, getAnalytics, getFilterO
 import type { Account, DollarRate, AnalyticsSummary, AnalyticsFilters, FilterOptions } from '../api';
 import {
   Wallet, DollarSign, TrendingUp, TrendingDown,
-  ArrowLeftRight, History, BarChart3, HandCoins, Trash2,
+  ArrowLeftRight, History, BarChart3, HandCoins, Trash2, LogOut,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { useAuth } from '../auth/AuthContext';
 import Modal from '../components/Modal';
 import TransactionForm from '../components/TransactionForm';
 import TransferForm from '../components/TransferForm';
@@ -31,6 +32,7 @@ const fmtMonth = (m: string) => {
 type ModalType = 'ingreso' | 'gasto' | 'transfer' | 'dolares' | 'historial' | 'metricas' | 'deudas' | null;
 
 export default function Dashboard() {
+  const { signOut } = useAuth();
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [rate, setRate] = useState<DollarRate | null>(null);
   const [loading, setLoading] = useState(true);
@@ -198,6 +200,22 @@ export default function Dashboard() {
             <span className="chip-highlight">Prom. ${fmt(rate.promedio)}</span>
           </div>
         )}
+        <button
+          type="button"
+          onClick={() => signOut()}
+          title="Cerrar sesión"
+          style={{
+            marginLeft: 'auto',
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 6,
+            background: 'transparent',
+            border: '1px solid #2e3244',
+            color: '#8b8d9e',
+          }}
+        >
+          <LogOut size={16} /> Salir
+        </button>
       </div>
 
       {/* Saldos */}
