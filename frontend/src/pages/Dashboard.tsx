@@ -14,6 +14,7 @@ import DolaresForm from '../components/DolaresForm';
 import HistorialView from '../components/HistorialView';
 import DeudasView from '../components/DeudasView';
 import CategoryTransactionsView from '../components/CategoryTransactionsView';
+import TypeTransactionsView from '../components/TypeTransactionsView';
 import { firstDayOfMonthBA, lastDayOfMonthBA, todayBA } from '../utils/date';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -48,6 +49,7 @@ export default function Dashboard() {
 
   // Category drilldown state
   const [drilldown, setDrilldown] = useState<{ category: string; type: 'INGRESO' | 'GASTO' } | null>(null);
+  const [typeDrilldown, setTypeDrilldown] = useState<'INGRESO' | 'GASTO' | null>(null);
 
   // Metrics state
   const [metrics, setMetrics] = useState<AnalyticsSummary | null>(null);
@@ -424,12 +426,12 @@ export default function Dashboard() {
 
             {/* Resumen total en ARS */}
             <div className="metrics-grid-4">
-              <div className="metric-card green">
-                <span className="metric-label">Ingresos Totales</span>
+              <div className="metric-card green clickable" onClick={() => setTypeDrilldown('INGRESO')} title="Ver detalle de ingresos">
+                <span className="metric-label">Ingresos Totales <span className="metric-hint">ver detalle ›</span></span>
                 <span className="metric-value">${fmt(totalIngresosArs)}</span>
               </div>
-              <div className="metric-card red">
-                <span className="metric-label">Gastos Totales</span>
+              <div className="metric-card red clickable" onClick={() => setTypeDrilldown('GASTO')} title="Ver detalle de gastos">
+                <span className="metric-label">Gastos Totales <span className="metric-hint">ver detalle ›</span></span>
                 <span className="metric-value">${fmt(totalGastosArs)}</span>
               </div>
               <div className={`metric-card ${balanceArs >= 0 ? 'green' : 'red'}`}>
@@ -621,6 +623,24 @@ export default function Dashboard() {
             type={drilldown.type}
             desde={filters.desde}
             hasta={filters.hasta}
+          />
+        )}
+      </Modal>
+
+      {/* Modal de detalle de ingresos / gastos del periodo */}
+      <Modal
+        open={typeDrilldown !== null}
+        onClose={() => setTypeDrilldown(null)}
+        title={typeDrilldown === 'INGRESO' ? 'Ingresos del período' : 'Gastos del período'}
+        wide
+      >
+        {typeDrilldown && (
+          <TypeTransactionsView
+            type={typeDrilldown}
+            desde={filters.desde}
+            hasta={filters.hasta}
+            categories={filters.categories ? filters.categories.split(',').filter(Boolean) : undefined}
+            rate={promedio}
           />
         )}
       </Modal>

@@ -957,6 +957,27 @@ textarea.edit-input {
   font-weight: 700;
 }
 
+.metric-card.clickable {
+  cursor: pointer;
+  transition: border-color 0.15s, transform 0.15s, box-shadow 0.15s;
+}
+
+.metric-card.clickable:hover {
+  transform: translateY(-2px);
+  border-color: var(--accent);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.metric-hint {
+  font-size: 0.58rem;
+  color: var(--accent);
+  text-transform: none;
+  letter-spacing: 0;
+  font-weight: 600;
+  margin-left: 0.3rem;
+  white-space: nowrap;
+}
+
 /* Chart */
 .chart-container {
   background: var(--bg-card);
