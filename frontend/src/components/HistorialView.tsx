@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react';
 import { getTransactions, deleteTransaction, updateTransaction, getAccounts, getCategories } from '../api';
 import type { Transaction, TransactionType, Account, CategoryItem } from '../api';
-import { Pencil, Trash2, Check, X } from 'lucide-react';
+import { Pencil, Trash2, Check, X, Search } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { formatDateDisplay } from '../utils/date';
+import { formatDateDisplay, daysAgoBA } from '../utils/date';
 
 const typeLabels: Record<TransactionType, string> = {
   INGRESO: 'Ingreso', GASTO: 'Gasto', TRANSFERENCIA: 'Transferencia',
@@ -30,6 +30,9 @@ export default function HistorialView() {
   const [categories, setCategories] = useState<CategoryItem[]>([]);
   const [filter, setFilter] = useState<TransactionType | ''>('');
   const [catFilter, setCatFilter] = useState<string[]>([]);
+  const [searchInput, setSearchInput] = useState('');
+  const [search, setSearch] = useState('');
+  const [daysBack, setDaysBack] = useState<number | null>(30);
   const [loading, setLoading] = useState(true);
   const [editId, setEditId] = useState<number | null>(null);
   const [edit, setEdit] = useState<EditState | null>(null);
@@ -37,17 +40,36 @@ export default function HistorialView() {
 
   const load = () => {
     setLoading(true);
-    getTransactions(filter || undefined, catFilter.length > 0 ? catFilter : undefined)
+    const searching = search.length > 0;
+    // Al buscar por palabra: sin limite de fecha (busca en todo el historial).
+    // Sin busqueda: solo los ultimos `daysBack` dias (null = todo).
+    const desde = searching || daysBack === null ? undefined : daysAgoBA(daysBack);
+    getTransactions(
+      filter || undefined,
+      catFilter.length > 0 ? catFilter : undefined,
+      desde,
+      undefined,
+      searching ? search : undefined,
+    )
       .then(setTransactions)
       .finally(() => setLoading(false));
   };
 
+  // Debounce del buscador
   useEffect(() => {
-    load();
+    const t = setTimeout(() => setSearch(searchInput.trim()), 400);
+    return () => clearTimeout(t);
+  }, [searchInput]);
+
+  useEffect(() => {
     getAccounts().then(setAccounts);
     getCategories().then(setCategories);
+  }, []);
+
+  useEffect(() => {
+    load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filter, catFilter]);
+  }, [filter, catFilter, search, daysBack]);
 
   const ingresoCats = categories.filter((c) => c.type === 'INGRESO');
   const gastoCats = categories.filter((c) => c.type === 'GASTO');
@@ -132,6 +154,18 @@ export default function HistorialView() {
   return (
     <div>
       <div className="filter-bar" style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
+        <div className="hist-search">
+          <Search size={15} />
+          <input
+            type="text"
+            placeholder="Buscar en la descripción / comentario..."
+            value={searchInput}
+            onChange={(e) => setSearchInput(e.target.value)}
+          />
+          {searchInput && (
+            <button type="button" onClick={() => setSearchInput('')} title="Limpiar búsqueda"><X size={14} /></button>
+          )}
+        </div>
         <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
           <select value={filter} onChange={(e) => { setFilter(e.target.value as TransactionType | ''); setCatFilter([]); }}>
             <option value="">Todos los tipos</option>
@@ -156,6 +190,24 @@ export default function HistorialView() {
               </span>
             ))}
           </div>
+        )}
+      </div>
+
+      <div className="hist-window">
+        {search ? (
+          <span>Buscando "{search}" en todo el historial · {transactions.length} resultado{transactions.length === 1 ? '' : 's'}</span>
+        ) : (
+          <>
+            <span>
+              {daysBack === null ? 'Mostrando todo el historial' : `Mostrando últimos ${daysBack} días`} · {transactions.length} movimientos
+            </span>
+            {daysBack !== null && (
+              <span style={{ display: 'flex', gap: '0.4rem' }}>
+                <button type="button" className="hist-load-btn" onClick={() => setDaysBack((d) => (d ?? 30) + 30)}>+ 30 días</button>
+                <button type="button" className="hist-load-btn" onClick={() => setDaysBack(null)}>Cargar todo</button>
+              </span>
+            )}
+          </>
         )}
       </div>
 

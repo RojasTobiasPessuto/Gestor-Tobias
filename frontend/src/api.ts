@@ -76,12 +76,14 @@ export const getTransactions = (
   categories?: string[],
   desde?: string,
   hasta?: string,
+  search?: string,
 ) => {
   const params: Record<string, string> = {};
   if (type) params.type = type;
   if (categories && categories.length > 0) params.categories = categories.join(',');
   if (desde) params.desde = desde;
   if (hasta) params.hasta = hasta;
+  if (search && search.trim()) params.search = search.trim();
   return api.get<Transaction[]>('/transactions', { params }).then((r) => r.data);
 };
 export const createTransaction = (data: CreateTransactionPayload) =>

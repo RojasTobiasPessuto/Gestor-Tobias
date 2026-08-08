@@ -33,6 +33,15 @@ export function currentMonthBA(): string {
 }
 
 /**
+ * Devuelve la fecha de hace N dias (desde hoy en Buenos Aires) en formato YYYY-MM-DD.
+ */
+export function daysAgoBA(days: number): string {
+  const [y, m, d] = todayBA().split('-').map(Number);
+  const dt = new Date(y, m - 1, d - days);
+  return `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')}`;
+}
+
+/**
  * Devuelve el primer dia del mes actual en Buenos Aires (YYYY-MM-01).
  */
 export function firstDayOfMonthBA(): string {

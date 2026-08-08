@@ -13,12 +13,13 @@ export class TransactionsController {
     @Query('categories') categories?: string | string[],
     @Query('desde') desde?: string,
     @Query('hasta') hasta?: string,
+    @Query('search') search?: string,
   ) {
     let cats: string[] | undefined;
     if (categories) {
       cats = Array.isArray(categories) ? categories : categories.split(',').filter(Boolean);
     }
-    return this.service.findAll(type, cats, desde, hasta);
+    return this.service.findAll(type, cats, desde, hasta, search);
   }
 
   @Get(':id')

@@ -18,6 +18,7 @@ export class TransactionsService {
     categories?: string[],
     desde?: string,
     hasta?: string,
+    search?: string,
   ): Promise<Transaction[]> {
     const qb = this.repo.createQueryBuilder('t')
       .leftJoinAndSelect('t.account', 'a')
@@ -28,6 +29,9 @@ export class TransactionsService {
     }
     if (desde) qb.andWhere('t.date >= :desde', { desde });
     if (hasta) qb.andWhere('t.date <= :hasta', { hasta });
+    if (search && search.trim()) {
+      qb.andWhere('t.comment ILIKE :search', { search: `%${search.trim()}%` });
+    }
     qb.orderBy('t.date', 'DESC').addOrderBy('t.id', 'DESC');
     return qb.getMany();
   }
