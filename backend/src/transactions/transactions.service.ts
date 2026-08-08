@@ -159,15 +159,22 @@ export class TransactionsService {
         1,
       );
 
-      old.type = dto.type;
-      old.amount = dto.amount;
-      old.account_id = dto.account_id;
-      old.account_to_id = dto.account_to_id ?? null;
-      old.categories = dto.categories ?? [];
-      old.comment = dto.comment ?? null;
-      old.exchangeRate = dto.exchangeRate ?? null;
-      old.date = dto.date;
-      return txRepo.save(old);
+      // UPDATE directo por id: NO usar save() sobre la entidad `old`, porque tiene las
+      // relaciones eager (account/accountTo) cargadas y el objeto Account viejo pisa el
+      // account_id nuevo, dejando el registro apuntando a la cuenta equivocada.
+      await txRepo.update(id, {
+        type: dto.type,
+        amount: dto.amount,
+        account_id: dto.account_id,
+        account_to_id: dto.account_to_id ?? null,
+        categories: dto.categories ?? [],
+        comment: dto.comment ?? null,
+        exchangeRate: dto.exchangeRate ?? null,
+        date: dto.date,
+      });
+
+      const updated = await txRepo.findOneBy({ id });
+      return updated!;
     });
   }
 

@@ -1,9 +1,9 @@
-import { useEffect, useState, useCallback } from 'react';
-import { getAccounts, getDollarRate, createTransaction, getAnalytics, getFilterOptions, adjustAccountBalance, deleteAccount } from '../api';
+import { useEffect, useState, useCallback, useRef } from 'react';
+import { getAccounts, getDollarRate, createTransaction, getAnalytics, getFilterOptions, adjustAccountBalance, deleteAccount, getBackup, restoreBackup } from '../api';
 import type { Account, DollarRate, AnalyticsSummary, AnalyticsFilters, FilterOptions } from '../api';
 import {
   Wallet, DollarSign, TrendingUp, TrendingDown,
-  ArrowLeftRight, History, BarChart3, HandCoins, Trash2, LogOut,
+  ArrowLeftRight, History, BarChart3, HandCoins, Trash2, LogOut, Download, Upload,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useAuth } from '../auth/AuthContext';
@@ -14,7 +14,7 @@ import DolaresForm from '../components/DolaresForm';
 import HistorialView from '../components/HistorialView';
 import DeudasView from '../components/DeudasView';
 import CategoryTransactionsView from '../components/CategoryTransactionsView';
-import { firstDayOfMonthBA, lastDayOfMonthBA } from '../utils/date';
+import { firstDayOfMonthBA, lastDayOfMonthBA, todayBA } from '../utils/date';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { Filter, X } from 'lucide-react';
@@ -33,6 +33,8 @@ type ModalType = 'ingreso' | 'gasto' | 'transfer' | 'dolares' | 'historial' | 'm
 
 export default function Dashboard() {
   const { signOut } = useAuth();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [backupBusy, setBackupBusy] = useState(false);
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [rate, setRate] = useState<DollarRate | null>(null);
   const [loading, setLoading] = useState(true);
@@ -103,6 +105,58 @@ export default function Dashboard() {
     const d = { desde: mesDesde, hasta: mesHasta };
     setFilters(d);
     loadMetrics(d);
+  };
+
+  const handleBackup = async () => {
+    setBackupBusy(true);
+    try {
+      const data = await getBackup();
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `gestor-backup-${todayBA()}.json`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+      toast.success('Backup descargado');
+    } catch {
+      toast.error('No se pudo generar el backup');
+    } finally {
+      setBackupBusy(false);
+    }
+  };
+
+  const handleImportFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    let data: unknown;
+    try {
+      data = JSON.parse(await file.text());
+    } catch {
+      toast.error('El archivo no es un backup valido');
+      return;
+    }
+    const confirmText = window.prompt(
+      'ATENCION: esto REEMPLAZA todos tus datos actuales por los del backup. No se puede deshacer.\n\nEscribi IMPORTAR para confirmar:',
+    );
+    if (confirmText !== 'IMPORTAR') {
+      toast('Importacion cancelada');
+      return;
+    }
+    setBackupBusy(true);
+    try {
+      const res = await restoreBackup(data);
+      toast.success(`Backup restaurado (${res.restored.transactions} transacciones)`);
+      loadAccounts();
+      loadMetrics(filters);
+    } catch {
+      toast.error('No se pudo restaurar el backup');
+    } finally {
+      setBackupBusy(false);
+    }
   };
 
   if (loading) return <p className="loading">Cargando...</p>;
@@ -200,22 +254,24 @@ export default function Dashboard() {
             <span className="chip-highlight">Prom. ${fmt(rate.promedio)}</span>
           </div>
         )}
-        <button
-          type="button"
-          onClick={() => signOut()}
-          title="Cerrar sesión"
-          style={{
-            marginLeft: 'auto',
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: 6,
-            background: 'transparent',
-            border: '1px solid #2e3244',
-            color: '#8b8d9e',
-          }}
-        >
-          <LogOut size={16} /> Salir
-        </button>
+        <div className="dash-header-actions">
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="application/json,.json"
+            onChange={handleImportFile}
+            style={{ display: 'none' }}
+          />
+          <button type="button" className="header-btn" disabled={backupBusy} onClick={handleBackup} title="Descargar copia de seguridad">
+            <Download size={15} /> Backup
+          </button>
+          <button type="button" className="header-btn" disabled={backupBusy} onClick={() => fileInputRef.current?.click()} title="Importar copia de seguridad">
+            <Upload size={15} /> Importar
+          </button>
+          <button type="button" className="header-btn" onClick={() => signOut()} title="Cerrar sesión">
+            <LogOut size={15} /> Salir
+          </button>
+        </div>
       </div>
 
       {/* Saldos */}

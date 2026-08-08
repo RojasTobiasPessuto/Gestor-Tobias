@@ -14,6 +14,7 @@ import { Account } from './accounts/account.entity.js';
 import { Transaction } from './transactions/transaction.entity.js';
 import { SeedService } from './seed/seed.service.js';
 import { AuthModule } from './auth/auth.module.js';
+import { BackupModule } from './backup/backup.module.js';
 
 @Module({
   imports: [
@@ -34,6 +35,7 @@ import { AuthModule } from './auth/auth.module.js';
     }),
     TypeOrmModule.forFeature([Account, Category]),
     AuthModule,
+    BackupModule,
     AccountsModule,
     TransactionsModule,
     DollarModule,

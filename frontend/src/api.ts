@@ -244,4 +244,19 @@ export const updateCategory = (id: number, data: { name?: string; type?: string 
   api.patch<CategoryItem>(`/categories/${id}`, data).then((r) => r.data);
 export const deleteCategory = (id: number) => api.delete(`/categories/${id}`);
 
+// Backup / restauracion
+export interface BackupData {
+  version: number;
+  app: string;
+  exportedAt: string;
+  accounts: unknown[];
+  categories: unknown[];
+  transactions: unknown[];
+  debts: unknown[];
+  recurringTemplates: unknown[];
+}
+export const getBackup = () => api.get<BackupData>('/backup').then((r) => r.data);
+export const restoreBackup = (data: unknown) =>
+  api.post<{ restored: Record<string, number> }>('/backup/restore', data).then((r) => r.data);
+
 export default api;
