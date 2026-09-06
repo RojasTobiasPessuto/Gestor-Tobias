@@ -5,6 +5,7 @@ import toast from 'react-hot-toast';
 import TransactionReceipt from './TransactionReceipt';
 import type { ReceiptData } from './TransactionReceipt';
 import { todayBA } from '../utils/date';
+import { accountLabel } from '../utils/account';
 
 export default function TransferForm() {
   const [accounts, setAccounts] = useState<Account[]>([]);
@@ -71,14 +72,14 @@ export default function TransferForm() {
         Cuenta Origen
         <select value={fromId} onChange={(e) => setFromId(e.target.value)} required>
           <option value="">Seleccionar...</option>
-          {accounts.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
+          {accounts.map((a) => <option key={a.id} value={a.id}>{accountLabel(a)}</option>)}
         </select>
       </label>
       <label>
         Cuenta Destino
         <select value={toId} onChange={(e) => setToId(e.target.value)} required>
           <option value="">Seleccionar...</option>
-          {accounts.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
+          {accounts.map((a) => <option key={a.id} value={a.id}>{accountLabel(a)}</option>)}
         </select>
       </label>
       <label>

@@ -5,6 +5,7 @@ import { Plus, Trash2, ChevronDown, ChevronUp, X } from 'lucide-react';
 import TransactionReceipt from './TransactionReceipt';
 import type { ReceiptData } from './TransactionReceipt';
 import { todayBA } from '../utils/date';
+import { accountLabel } from '../utils/account';
 
 interface SubmitData {
   amount: number;
@@ -114,7 +115,7 @@ export default function TransactionForm({ onSubmit, submitLabel, type }: Props) 
           <select value={accountId} onChange={(e) => setAccountId(e.target.value)} required>
             <option value="">Seleccionar...</option>
             {accounts.map((a) => (
-              <option key={a.id} value={a.id}>{a.name}</option>
+              <option key={a.id} value={a.id}>{accountLabel(a)}</option>
             ))}
           </select>
         </label>

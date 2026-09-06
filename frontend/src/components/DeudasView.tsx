@@ -8,6 +8,7 @@ import type { Debt, Account, RecurringTemplate, GenerateMonthItem } from '../api
 import toast from 'react-hot-toast';
 import { Plus, Pencil, Trash2, Check, X, DollarSign, RefreshCw, Layers } from 'lucide-react';
 import { formatDateDisplay, todayBA, currentMonthBA } from '../utils/date';
+import { accountLabel } from '../utils/account';
 import CategoryMultiSelect from './CategoryMultiSelect';
 
 interface Props {
@@ -423,7 +424,7 @@ export default function DeudasView({ onChange }: Props) {
                   <select value={formSourceAccountId} onChange={(e) => setFormSourceAccountId(e.target.value)}>
                     <option value="">Sin cuenta (no descontar)</option>
                     {accounts.filter((a) => !a.name.startsWith('ME DEBEN') && a.currency === formCurrency).map((a) => (
-                      <option key={a.id} value={a.id}>{a.name}</option>
+                      <option key={a.id} value={a.id}>{accountLabel(a)}</option>
                     ))}
                   </select>
                 </label>
@@ -654,7 +655,7 @@ export default function DeudasView({ onChange }: Props) {
                 {accounts
                   .filter((a) => !a.name.startsWith('ME DEBEN') && (!payingDebt || a.currency === payingDebt.currency))
                   .map((a) => (
-                    <option key={a.id} value={a.id}>{a.name}</option>
+                    <option key={a.id} value={a.id}>{accountLabel(a)}</option>
                   ))}
               </select>
             </label>

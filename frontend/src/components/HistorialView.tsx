@@ -4,6 +4,7 @@ import type { Transaction, TransactionType, Account, CategoryItem } from '../api
 import { Pencil, Trash2, Check, X, Search } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { formatDateDisplay, daysAgoBA } from '../utils/date';
+import { accountLabel } from '../utils/account';
 
 const typeLabels: Record<TransactionType, string> = {
   INGRESO: 'Ingreso', GASTO: 'Gasto', TRANSFERENCIA: 'Transferencia',
@@ -234,13 +235,13 @@ export default function HistorialView() {
                         <td><input className="edit-input" type="number" step="0.01" value={edit.amount} onChange={(e) => setEdit({ ...edit, amount: e.target.value })} /></td>
                         <td>
                           <select className="edit-input" value={edit.account_id} onChange={(e) => setEdit({ ...edit, account_id: e.target.value })}>
-                            {accounts.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
+                            {accounts.map((a) => <option key={a.id} value={a.id}>{accountLabel(a)}</option>)}
                           </select>
                         </td>
                         <td>
                           {needsDest ? (
                             <select className="edit-input" value={edit.account_to_id} onChange={(e) => setEdit({ ...edit, account_to_id: e.target.value })}>
-                              {accounts.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
+                              {accounts.map((a) => <option key={a.id} value={a.id}>{accountLabel(a)}</option>)}
                             </select>
                           ) : '-'}
                         </td>
