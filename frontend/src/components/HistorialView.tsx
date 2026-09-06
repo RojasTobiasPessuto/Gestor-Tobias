@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react';
 import { getTransactions, deleteTransaction, updateTransaction, getAccounts, getCategories } from '../api';
 import type { Transaction, TransactionType, Account, CategoryItem } from '../api';
-import { Pencil, Trash2, Check, X, Search } from 'lucide-react';
+import { Pencil, Trash2, Check, X, Search, Download } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { formatDateDisplay, daysAgoBA } from '../utils/date';
+import { formatDateDisplay, daysAgoBA, firstDayOfMonthBA, todayBA } from '../utils/date';
 import { accountLabel } from '../utils/account';
 
 const typeLabels: Record<TransactionType, string> = {
@@ -14,6 +14,37 @@ const typeColors: Record<TransactionType, string> = {
   INGRESO: '#22c55e', GASTO: '#ef4444', TRANSFERENCIA: '#3b82f6',
   VENTA_DOLARES: '#f59e0b', COMPRA_DOLARES: '#8b5cf6', AJUSTE: '#8b8d9e',
 };
+
+const csvEscape = (v: string) => `"${v.replace(/"/g, '""')}"`;
+
+function buildCsv(txs: Transaction[]): string {
+  const headers = ['Fecha', 'Tipo', 'Monto', 'Moneda', 'Cuenta', 'Cuenta destino', 'Categorias', 'Comentario', 'Tasa'];
+  const rows = txs.map((t) => [
+    t.date,
+    typeLabels[t.type],
+    String(t.amount),
+    t.account?.currency ?? '',
+    t.account?.name ?? '',
+    t.accountTo?.name ?? '',
+    (t.categories || []).join('; '),
+    t.comment ?? '',
+    t.exchangeRate != null ? String(t.exchangeRate) : '',
+  ]);
+  return [headers, ...rows].map((r) => r.map((c) => csvEscape(String(c))).join(',')).join('\r\n');
+}
+
+function downloadCsv(csv: string, filename: string) {
+  // BOM (﻿) para que Excel abra bien los acentos
+  const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
 
 interface EditState {
   amount: string;
@@ -34,6 +65,9 @@ export default function HistorialView() {
   const [searchInput, setSearchInput] = useState('');
   const [search, setSearch] = useState('');
   const [daysBack, setDaysBack] = useState<number | null>(30);
+  const [expDesde, setExpDesde] = useState(firstDayOfMonthBA());
+  const [expHasta, setExpHasta] = useState(todayBA());
+  const [exporting, setExporting] = useState(false);
   const [loading, setLoading] = useState(true);
   const [editId, setEditId] = useState<number | null>(null);
   const [edit, setEdit] = useState<EditState | null>(null);
@@ -152,6 +186,24 @@ export default function HistorialView() {
     filter === 'GASTO' ? gastoCats :
     categories;
 
+  const handleExportCsv = async () => {
+    if (exporting) return;
+    setExporting(true);
+    try {
+      const txs = await getTransactions(undefined, undefined, expDesde || undefined, expHasta || undefined);
+      if (txs.length === 0) {
+        toast('No hay transacciones en ese período');
+        return;
+      }
+      downloadCsv(buildCsv(txs), `gestor-historial-${expDesde || 'inicio'}_a_${expHasta || 'hoy'}.csv`);
+      toast.success(`CSV descargado (${txs.length} transacciones)`);
+    } catch {
+      toast.error('No se pudo exportar el CSV');
+    } finally {
+      setExporting(false);
+    }
+  };
+
   return (
     <div>
       <div className="filter-bar" style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
@@ -192,6 +244,22 @@ export default function HistorialView() {
             ))}
           </div>
         )}
+      </div>
+
+      <div className="hist-export">
+        <Download size={14} />
+        <span className="hist-export-label">Exportar CSV</span>
+        <label>
+          Desde
+          <input type="date" value={expDesde} onChange={(e) => setExpDesde(e.target.value)} />
+        </label>
+        <label>
+          Hasta
+          <input type="date" value={expHasta} onChange={(e) => setExpHasta(e.target.value)} />
+        </label>
+        <button type="button" className="hist-load-btn" disabled={exporting} onClick={handleExportCsv}>
+          {exporting ? 'Generando...' : 'Descargar'}
+        </button>
       </div>
 
       <div className="hist-window">

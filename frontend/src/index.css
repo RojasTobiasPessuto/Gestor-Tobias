@@ -1198,6 +1198,52 @@ textarea.edit-input {
 
 .hist-load-btn:hover { border-color: var(--accent); }
 
+.hist-export {
+  display: flex;
+  align-items: flex-end;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.6rem 0.75rem;
+  margin-bottom: 0.75rem;
+}
+
+.hist-export > svg { color: var(--text-muted); margin-bottom: 0.45rem; }
+
+.hist-export-label {
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: 0.45rem;
+}
+
+.hist-export label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  font-size: 0.66rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.hist-export input {
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 0.35rem 0.5rem;
+  color: var(--text);
+  font-size: 0.8rem;
+  outline: none;
+}
+
+.hist-export input:focus { border-color: var(--accent); }
+.hist-export .hist-load-btn { padding: 0.45rem 0.9rem; font-size: 0.78rem; }
+
 .table-wrapper { overflow-x: auto; }
 
 table {
